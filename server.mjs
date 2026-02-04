@@ -364,10 +364,6 @@ function categoryFromText(text, hint) {
     return "esportes";
   }
 
-  if (hint === "fofocas") return "fofocas";
-  if (hint === "celebridades") return "celebridades";
-  if (hint === "esportes") return "esportes";
-
   if (
     /(famos|celebr|atriz|ator|cantor|cantora|reality|novela|hollywood|casal|fofoca|babado)/.test(
       t,
@@ -469,15 +465,86 @@ async function buildTrends() {
     merged.push(...r.items);
   }
 
-  const seen = new Set();
-  const deduped = merged
-    .map(applyCategoryRules)
-    .filter((item) => {
-      const key = item.name.toLowerCase().replace(/\s+/g, " ").trim();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+  const groups = new Map();
+  for (const item of merged.map(applyCategoryRules)) {
+    const key = normalizeTopicName(item.name);
+    if (!key) continue;
+    if (!groups.has(key)) {
+      groups.set(key, {
+        key,
+        name: item.name,
+        items: [],
+        sourceSet: new Set(),
+        categoryVotes: {},
+        bestTs: 0,
+      });
+    }
+
+    const group = groups.get(key);
+    group.items.push(item);
+    group.sourceSet.add(item.source);
+    group.categoryVotes[item.category] = (group.categoryVotes[item.category] || 0) + 1;
+
+    const ts = Date.parse(`${item.published_at}T${item.published_time || "00:00:00"}-03:00`);
+    if (Number.isFinite(ts) && ts >= group.bestTs) {
+      group.bestTs = ts;
+      group.name = item.name;
+    }
+  }
+
+  function keywordCategory(text) {
+    const t = text.toLowerCase();
+    if (/(bbb|pared[aã]o|big brother)/.test(t)) return "bbb";
+    if (/(tiktok|foryou|challenge|#fyp)/.test(t)) return "tiktok";
+    if (/(x.com|twitter|trend topics)/.test(t)) return "x_twitter";
+    if (/(tmz|deuxmoi|hollywood)/.test(t)) return "mundo_fofocas";
+    if (/(futebol|esporte|jogo|gol|campeonato|nba|nfl|ufc|f1)/.test(t)) return "esportes";
+    if (/(fofoca|babado|influenciador|gossip)/.test(t)) return "fofocas";
+    if (/(famos|celebr|atriz|ator|cantor|cantora|novela|reality)/.test(t)) return "celebridades";
+    return "noticias";
+  }
+
+  const grouped = Array.from(groups.values()).map((group) => {
+    const latest = [...group.items].sort((a, b) => {
+      const ta = Date.parse(`${a.published_at}T${a.published_time || "00:00:00"}-03:00`);
+      const tb = Date.parse(`${b.published_at}T${b.published_time || "00:00:00"}-03:00`);
+      return tb - ta;
+    })[0];
+
+    const textBlob = group.items.map((i) => `${i.name} ${i.desc || ""} ${i.source}`).join(" ");
+    const kcat = keywordCategory(textBlob);
+    const voted = Object.entries(group.categoryVotes).sort((a, b) => b[1] - a[1])[0]?.[0] || "noticias";
+    const category = kcat !== "noticias" ? kcat : voted;
+
+    const sourceCount = group.sourceSet.size;
+    const mentionCount = group.items.length;
+    const maxItemScore = Math.max(...group.items.map(itemScore));
+    const heatScore = sourceCount * 5 + mentionCount * 2 + maxItemScore;
+
+    let badge = "new";
+    if (heatScore >= 12) badge = "hot";
+    else if (heatScore >= 7) badge = "rising";
+
+    return {
+      name: group.name,
+      badge,
+      desc: latest?.desc || "",
+      source:
+        sourceCount > 1
+          ? `${latest?.source || "Web"} +${sourceCount - 1} fontes`
+          : latest?.source || "Web",
+      published_at: latest?.published_at || today,
+      published_time: latest?.published_time || "00:00:00",
+      category,
+      heatScore,
+      mentionCount,
+      sourceCount,
+      url:
+        !latest?.url || latest.url.includes("/trending/rss")
+          ? buildFallbackUrl(group.name, category)
+          : latest.url,
+    };
+  });
 
   const payload = {
     bbb: [],
@@ -491,8 +558,14 @@ async function buildTrends() {
   };
 
   for (const section of SECTION_KEYS) {
-    payload[section] = deduped
+    payload[section] = grouped
       .filter((item) => item.category === section)
+      .sort((a, b) => {
+        if (b.heatScore !== a.heatScore) return b.heatScore - a.heatScore;
+        const ta = Date.parse(`${a.published_at}T${a.published_time || "00:00:00"}-03:00`);
+        const tb = Date.parse(`${b.published_at}T${b.published_time || "00:00:00"}-03:00`);
+        return tb - ta;
+      })
       .slice(0, 10)
       .map((item) => ({
         name: item.name,
@@ -501,10 +574,7 @@ async function buildTrends() {
         source: item.source,
         published_at: item.published_at,
         published_time: item.published_time,
-        url:
-          !item.url || item.url.includes("/trending/rss")
-            ? buildFallbackUrl(item.name, item.category)
-            : item.url,
+        url: item.url,
       }));
   }
 
@@ -550,9 +620,8 @@ function isCelebritySource(sourceName) {
 }
 
 function applyCategoryRules(item) {
-  if (item.category === "celebridades" && !isCelebritySource(item.source)) {
-    return { ...item, category: "noticias" };
-  }
+  // Mantemos todas as fontes elegíveis para todas as colunas;
+  // a consolidação final decide os temas mais quentes por sobreposição.
   return item;
 }
 
