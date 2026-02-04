@@ -36,6 +36,8 @@ const HOST = process.env.HOST || "127.0.0.1";
 const REFRESH_MS = Number(process.env.REFRESH_MS || 120000);
 const X_BEARER_TOKEN = process.env.X_BEARER_TOKEN || "";
 const X_BRAZIL_WOEID = process.env.X_BRAZIL_WOEID || "23424768";
+const AUTH_USER = process.env.AUTH_USER || "";
+const AUTH_PASS = process.env.AUTH_PASS || "";
 const MAX_PULSE_POINTS = 40;
 const PULSE_TOPICS = 5;
 const CELEBRITY_SOURCES = [
@@ -298,6 +300,35 @@ const SOURCES = [
 function sendJson(res, status, payload) {
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
   res.end(JSON.stringify(payload));
+}
+
+function isAuthEnabled() {
+  return Boolean(AUTH_USER && AUTH_PASS);
+}
+
+function unauthorized(res) {
+  res.writeHead(401, {
+    "Content-Type": "text/plain; charset=utf-8",
+    "WWW-Authenticate": 'Basic realm="Trends Brasil MOB36"',
+  });
+  res.end("Unauthorized");
+}
+
+function isAuthorized(req) {
+  const header = String(req.headers.authorization || "");
+  if (!header.startsWith("Basic ")) return false;
+  const encoded = header.slice(6).trim();
+  let decoded = "";
+  try {
+    decoded = Buffer.from(encoded, "base64").toString("utf8");
+  } catch {
+    return false;
+  }
+  const sep = decoded.indexOf(":");
+  if (sep < 0) return false;
+  const user = decoded.slice(0, sep);
+  const pass = decoded.slice(sep + 1);
+  return user === AUTH_USER && pass === AUTH_PASS;
 }
 
 function htmlDecode(input) {
@@ -1156,6 +1187,11 @@ async function serveStatic(res, path) {
 }
 
 const server = createServer(async (req, res) => {
+  if (isAuthEnabled() && !isAuthorized(req)) {
+    unauthorized(res);
+    return;
+  }
+
   if (req.method === "POST" && req.url === "/api/trends") {
     await handleTrends(req, res);
     return;
