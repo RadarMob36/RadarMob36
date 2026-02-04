@@ -36,6 +36,20 @@ const HOST = process.env.HOST || "127.0.0.1";
 const REFRESH_MS = Number(process.env.REFRESH_MS || 120000);
 const MAX_PULSE_POINTS = 40;
 const PULSE_TOPICS = 5;
+const CELEBRITY_SOURCES = [
+  "uol splash",
+  "portal leo dias",
+  "leodias",
+  "purepeople",
+  "contigo",
+  "quem",
+  "ofuxico",
+  "extra famosos",
+  "gente (terra)",
+  "tmz",
+  "deuxmoi",
+  "revistaquem",
+];
 const SECTION_KEYS = [
   "bbb",
   "fofocas",
@@ -137,6 +151,11 @@ const SOURCES = [
     url: "https://news.google.com/rss/search?q=site:x.com+famosos+OR+celebridades&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "x_twitter",
   },
+  {
+    name: "X Trend Topics BR",
+    url: "https://news.google.com/rss/search?q=twitter+trending+topics+brasil+site:x.com&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "x_twitter",
+  },
 ];
 
 function sendJson(res, status, payload) {
@@ -166,24 +185,20 @@ function extractTag(block, tag) {
   return m ? htmlDecode(m[1]) : "";
 }
 
-function toIsoDate(value, fallbackIso) {
-  if (!value) return fallbackIso;
+function parsePubDate(value) {
+  if (!value) return null;
   const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return fallbackIso;
-  return d.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-}
-
-function toBrTime(value) {
-  if (!value) return "00:00:00";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "00:00:00";
-  return d.toLocaleTimeString("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    hour12: false,
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+  if (Number.isNaN(d.getTime())) return null;
+  return {
+    date: d.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" }),
+    time: d.toLocaleTimeString("pt-BR", {
+      timeZone: "America/Sao_Paulo",
+      hour12: false,
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }),
+  };
 }
 
 function todayIso() {
@@ -274,8 +289,10 @@ function parseRssItems(xml, source, today) {
         extractTag(block, "pubDate") ||
         extractTag(block, "published") ||
         extractTag(block, "updated");
-      const publishedAt = toIsoDate(pubDateRaw, today);
-      const publishedTime = toBrTime(pubDateRaw);
+      const pubDate = parsePubDate(pubDateRaw);
+      if (!pubDate) return null;
+      const publishedAt = pubDate.date;
+      const publishedTime = pubDate.time;
       const sourceName = sourceTag || source.name;
       const title = normalizeTitle(rawTitle, sourceName);
 
@@ -343,12 +360,14 @@ async function buildTrends() {
   }
 
   const seen = new Set();
-  const deduped = merged.filter((item) => {
-    const key = item.name.toLowerCase().replace(/\s+/g, " ").trim();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  const deduped = merged
+    .map(applyCategoryRules)
+    .filter((item) => {
+      const key = item.name.toLowerCase().replace(/\s+/g, " ").trim();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 
   const payload = {
     bbb: [],
@@ -408,6 +427,18 @@ function buildScoreMap(trends) {
   return scores;
 }
 
+function isCelebritySource(sourceName) {
+  const s = String(sourceName || "").toLowerCase();
+  return CELEBRITY_SOURCES.some((k) => s.includes(k));
+}
+
+function applyCategoryRules(item) {
+  if (item.category === "celebridades" && !isCelebritySource(item.source)) {
+    return { ...item, category: "noticias" };
+  }
+  return item;
+}
+
 function computeTotalScore(scoreMap) {
   return Object.values(scoreMap).reduce((acc, value) => acc + value, 0);
 }
@@ -452,7 +483,7 @@ async function refreshData(force = false) {
 }
 
 function buildPulsePayload() {
-  const checkpoints = state.pulse.map((cp) => ({
+  let checkpoints = state.pulse.map((cp) => ({
     ts: cp.ts,
     total: cp.total,
   }));
@@ -475,13 +506,32 @@ function buildPulsePayload() {
     .slice(0, PULSE_TOPICS)
     .map(([name]) => name);
 
-  const series = topicNames.map((name) => ({
+  let series = topicNames.map((name) => ({
     name,
     points: state.pulse.map((cp) => ({
       ts: cp.ts,
       value: cp.topics[name] || 0,
     })),
   }));
+
+  if (checkpoints.length === 1) {
+    const first = checkpoints[0];
+    const prevTs = new Date(Date.parse(first.ts) - REFRESH_MS).toISOString();
+    checkpoints = [
+      { ts: prevTs, total: first.total },
+      first,
+    ];
+    series = series.map((line) => {
+      const current = line.points[0] || { ts: first.ts, value: 0 };
+      return {
+        ...line,
+        points: [
+          { ts: prevTs, value: current.value },
+          current,
+        ],
+      };
+    });
+  }
 
   let movers = [];
   if (state.pulse.length >= 2) {
