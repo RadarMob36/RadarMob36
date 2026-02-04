@@ -28,8 +28,10 @@
             --primary: #FF0080;
             --secondary: #7928CA;
             --accent: #00DFD8;
-            --dark: #0A0E27;
-            --light: #F0F4F8;
+            --dark: #090b1f;
+            --light: #f6f8ff;
+            --panel: rgba(255, 255, 255, 0.08);
+            --panel-border: rgba(255, 255, 255, 0.16);
         }
 
         * {
@@ -40,10 +42,15 @@
 
         body {
             font-family: 'Work Sans', sans-serif;
-            background: var(--dark);
+            background:
+                radial-gradient(circle at 8% 8%, rgba(0, 223, 216, 0.18), transparent 38%),
+                radial-gradient(circle at 82% 14%, rgba(255, 0, 128, 0.2), transparent 36%),
+                radial-gradient(circle at 52% 90%, rgba(121, 40, 202, 0.24), transparent 44%),
+                linear-gradient(145deg, #0f1233 0%, #0a0d28 52%, #140b2d 100%);
             color: var(--light);
             overflow-x: hidden;
             position: relative;
+            min-height: 100vh;
         }
 
         body::before {
@@ -53,12 +60,13 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background:
-                radial-gradient(circle at 20% 50%, rgba(255, 0, 128, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 80% 80%, rgba(121, 40, 202, 0.1) 0%, transparent 50%),
-                radial-gradient(circle at 40% 20%, rgba(0, 223, 216, 0.05) 0%, transparent 50%);
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+            background-size: 38px 38px;
             z-index: 0;
-            animation: pulse 15s ease-in-out infinite;
+            opacity: 0.09;
+            animation: pulse 18s ease-in-out infinite;
         }
 
         @keyframes pulse {
@@ -136,22 +144,24 @@
         }
 
         .date-badge {
-            background: rgba(255, 0, 128, 0.2);
-            border: 1px solid var(--primary);
+            background: rgba(255, 0, 128, 0.18);
+            border: 1px solid rgba(255, 0, 128, 0.55);
             padding: 12px 25px;
             border-radius: 30px;
             font-size: 1rem;
             font-weight: 600;
+            backdrop-filter: blur(6px);
         }
 
         .live-indicator {
             display: inline-flex;
             align-items: center;
             gap: 8px;
-            background: rgba(255, 0, 0, 0.2);
+            background: rgba(255, 0, 0, 0.14);
             padding: 10px 20px;
             border-radius: 25px;
-            border: 1px solid rgba(255, 0, 0, 0.5);
+            border: 1px solid rgba(255, 0, 0, 0.45);
+            backdrop-filter: blur(6px);
         }
 
         .live-dot {
@@ -225,11 +235,13 @@
         }
 
         .pulse-panel {
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
             border-radius: 20px;
             padding: 24px;
             margin-top: 20px;
+            box-shadow: 0 18px 60px rgba(0, 0, 0, 0.28);
+            backdrop-filter: blur(10px);
         }
 
         .pulse-header {
@@ -264,9 +276,9 @@
 
         .pulse-chart-wrap {
             height: 180px;
-            background: rgba(0, 0, 0, 0.2);
+            background: rgba(8, 10, 28, 0.58);
             border-radius: 14px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.14);
             margin-bottom: 14px;
             padding: 10px;
             position: relative;
@@ -342,8 +354,8 @@
         }
 
         .trend-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
             border-radius: 20px;
             padding: 30px;
             backdrop-filter: blur(10px);
@@ -351,6 +363,7 @@
             animation: slideUp 0.6s ease-out both;
             position: relative;
             overflow: hidden;
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.26);
         }
 
         .trend-card::before {
@@ -426,7 +439,7 @@
         }
 
         .trend-item {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255, 255, 255, 0.08);
             padding: 15px 20px;
             margin: 12px 0;
             border-radius: 12px;
@@ -435,7 +448,7 @@
         }
 
         .trend-item:hover {
-            background: rgba(255, 0, 128, 0.1);
+            background: rgba(255, 0, 128, 0.16);
             border-left-color: var(--primary);
             transform: translateX(10px);
         }
@@ -556,9 +569,9 @@
             text-align: center;
             margin-top: 80px;
             padding: 30px 20px;
-            color: rgba(240, 244, 248, 0.4);
+            color: rgba(240, 244, 248, 0.55);
             font-size: 0.85rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-top: 1px solid rgba(255, 255, 255, 0.18);
         }
 
         .footer h4 {
