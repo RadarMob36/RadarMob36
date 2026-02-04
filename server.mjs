@@ -977,6 +977,9 @@ async function buildTrends() {
         if (section === "mundo_fofocas") {
           return /(tmz|deuxmoi|people|e! online|eonline)/.test(source);
         }
+        if (section === "celebridades") {
+          return /(leo dias|gossip do dia|choquei|contigo|ofuxico)/.test(source);
+        }
         if (section === "x_twitter") {
           return (
             /(x api official br|trend24|getdaytrends|x \/ twitter|x trend topics)/.test(source) &&
