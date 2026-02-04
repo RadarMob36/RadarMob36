@@ -444,7 +444,9 @@ function derivePulseTopic(item) {
   if (item?.category === "esportes" && /flamengo|palmeiras|corinthians|vasco|santos|grêmio|internacional|cruzeiro|atlético|botafogo|bahia|fortaleza|ceará/i.test(text)) {
     // segue para detectar time específico abaixo
   } else if (item?.category === "esportes") {
-    return "Esportes";
+    // Evita tópico genérico no pulso.
+    // Se não acharmos assunto específico, o item não entra no gráfico.
+    return null;
   }
 
   // Remove ruído comum que vira "assunto" indevido no gráfico.
@@ -465,7 +467,6 @@ function derivePulseTopic(item) {
     "santos",
     "vasco",
     "grêmio",
-    "internacional",
     "cruzeiro",
     "atlético mineiro",
     "atlético-mg",
@@ -478,11 +479,22 @@ function derivePulseTopic(item) {
   for (const team of teams) {
     if (text.includes(team)) return team.replace(/\b\w/g, (c) => c.toUpperCase());
   }
+  // "Internacional" sozinho costuma virar ruído (adjetivo), só aceita em contexto de jogo.
+  if (/\b(inter\s*x\s*|x\s*inter\b|internacional\s*x\s*|x\s*internacional\b|sport club internacional)\b/.test(text)) {
+    return "Internacional";
+  }
+
+  const versus = `${name} ${desc}`.match(/\b([A-Za-zÀ-ÖØ-öø-ÿ]{3,})\s*x\s*([A-Za-zÀ-ÖØ-öø-ÿ]{3,})\b/i);
+  if (versus) {
+    const left = versus[1].replace(/\b\w/g, (c) => c.toUpperCase());
+    const right = versus[2].replace(/\b\w/g, (c) => c.toUpperCase());
+    return `${left} x ${right}`;
+  }
   if (/\b(brasileir[aã]o|libertadores|copa do brasil)\b/.test(text)) {
-    return "Brasileirão / Jogos";
+    return null;
   }
   if (/\bfutebol\b|champions|nba|nfl|ufc|f1/.test(text)) {
-    return "Jogos de Hoje";
+    return null;
   }
 
   const hashtags = `${name} ${desc}`.match(/#([A-Za-z0-9_]+)/g) || [];
@@ -498,8 +510,13 @@ function derivePulseTopic(item) {
   const short = cleanedTitle.split(/\s+/).slice(0, 3).join(" ");
 
   if (!short || short.length < 3) return null;
-  if (/^(alfinetei|choquei|gossip|instagram|portal|x|twitter|tiktok)$/i.test(short)) return null;
+  if (/^(alfinetei|choquei|gossip|instagram|portal|x|twitter|tiktok|internacional|esportes|jogos|jogos de hoje|not[ií]cias?)$/i.test(short)) return null;
   return short;
+}
+
+function isGenericPulseTopic(topic) {
+  const t = normalizeTopicName(topic);
+  return /^(internacional|esportes|jogos de hoje|brasileir[aã]o \/ jogos|not[ií]cias sobre|mundo|fofocas?)$/.test(t);
 }
 
 function categoryFromText(text, hint) {
@@ -1071,6 +1088,7 @@ function buildPulsePayload() {
       name,
       total,
     }))
+    .filter((x) => !isGenericPulseTopic(state.topicLabels[x.name] || x.name))
     .sort((a, b) => b.total - a.total)
     .map((x) => x.name);
 
