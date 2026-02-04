@@ -312,6 +312,25 @@
             color: rgba(245, 245, 245, 0.92);
         }
 
+        .pulse-insight-head {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+
+        .pulse-insight-points {
+            color: #14f1ea;
+            font-weight: 900;
+        }
+
+        .pulse-insight-news {
+            margin-top: 8px;
+            font-size: 0.82rem;
+            color: rgba(205, 219, 236, 0.95);
+        }
+
         .pulse-legend {
             display: flex;
             flex-wrap: wrap;
@@ -1009,28 +1028,62 @@
                 list.forEach((item) => allItems.push({ ...item, section: key }));
             });
 
+            const normalize = (s) => String(s || '').toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, ' ').replace(/\s+/g, ' ').trim();
+            const esc = (s) => String(s || '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+
             const insights = movers.slice(0, 3).map((mover) => {
-                const q = String(mover.name || '').toLowerCase();
+                const q = normalize(mover.name);
                 const tokens = q.split(/\s+/).filter((t) => t.length > 2);
                 const related = allItems.filter((item) => {
-                    const text = `${item.name || ''} ${item.desc || ''}`.toLowerCase();
+                    const tname = normalize(item.name);
+                    const tdesc = normalize(item.desc);
+                    if (q && (tname.includes(q) || q.includes(tname))) return true;
                     if (!tokens.length) return false;
-                    return tokens.some((t) => text.includes(t));
+                    const hits = tokens.filter((t) => tname.includes(t) || tdesc.includes(t));
+                    return hits.length >= Math.min(2, tokens.length);
                 });
 
                 const sourceSet = [...new Set(related.map((x) => x.source).filter(Boolean))];
                 const sections = [...new Set(related.map((x) => sectionNames[x.section]).filter(Boolean))];
                 const firstSources = sourceSet.slice(0, 3).join(', ');
                 const sectionText = sections.length ? ` em ${sections.join(', ')}` : '';
+                const sample = related
+                    .slice()
+                    .sort((a, b) => ((b.published_at || '') + (b.published_time || '')).localeCompare((a.published_at || '') + (a.published_time || '')))[0];
+                const sampleTitle = sample?.name || mover.name;
+                const sampleSource = sample?.source || 'Web';
+                const sampleWhen = sample?.published_time ? `${sample.published_at || ''} ${sample.published_time}` : (sample?.published_at || '');
 
                 if (!related.length) {
-                    return `${mover.name} está em alta no pulso (${mover.score} pts).`;
+                    return `
+                        <div class="pulse-insight">
+                            <div class="pulse-insight-head">
+                                <span class="pulse-insight-points">${mover.score}pts</span>
+                                <span>${esc(mover.name)}</span>
+                            </div>
+                            <div>${esc(mover.name)} está em alta no pulso agora.</div>
+                        </div>
+                    `;
                 }
 
-                return `${mover.name} está em alta${sectionText} porque apareceu em ${sourceSet.length} fonte(s): ${firstSources}.`;
+                return `
+                    <div class="pulse-insight">
+                        <div class="pulse-insight-head">
+                            <span class="pulse-insight-points">${mover.score}pts</span>
+                            <span>${esc(mover.name)}</span>
+                        </div>
+                        <div>${esc(mover.name)} está em alta${esc(sectionText)} porque apareceu em ${sourceSet.length} fonte(s): ${esc(firstSources)}.</div>
+                        <div class="pulse-insight-news">Última evidência: "${esc(sampleTitle)}" • ${esc(sampleSource)}${sampleWhen ? ` • ${esc(sampleWhen)}` : ''}.</div>
+                    </div>
+                `;
             });
 
-            box.innerHTML = insights.map((text) => `<div class="pulse-insight">${text}</div>`).join('');
+            box.innerHTML = insights.join('');
         }
 
         function renderTrends(trends) {
