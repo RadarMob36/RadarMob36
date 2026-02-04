@@ -69,12 +69,14 @@ const SECTION_KEYS = [
   "bbb",
   "fofocas",
   "celebridades",
+  "fora_eixo",
   "esportes",
   "noticias",
   "mundo_fofocas",
   "x_twitter",
   "tiktok",
 ];
+const PULSE_SECTIONS = SECTION_KEYS.filter((s) => s !== "fora_eixo");
 
 const SOURCES = [
   {
@@ -709,6 +711,81 @@ function isWeakArticle(item) {
   return false;
 }
 
+function isOutsideRioSaoPaulo(item) {
+  const text = `${item?.name || ""} ${item?.desc || ""} ${item?.source || ""}`.toLowerCase();
+  const outsideKeywords = [
+    "acre",
+    "alagoas",
+    "amapá",
+    "amapa",
+    "amazonas",
+    "bahia",
+    "ceará",
+    "ceara",
+    "distrito federal",
+    "espírito santo",
+    "espirito santo",
+    "goiás",
+    "goias",
+    "maranhão",
+    "maranhao",
+    "mato grosso",
+    "mato grosso do sul",
+    "minas gerais",
+    "pará",
+    "para",
+    "paraíba",
+    "paraiba",
+    "paraná",
+    "parana",
+    "pernambuco",
+    "piauí",
+    "piaui",
+    "rio grande do norte",
+    "rio grande do sul",
+    "rondônia",
+    "rondonia",
+    "roraima",
+    "santa catarina",
+    "sergipe",
+    "tocantins",
+    "salvador",
+    "fortaleza",
+    "belo horizonte",
+    "recife",
+    "porto alegre",
+    "curitiba",
+    "manaus",
+    "belém",
+    "belem",
+    "goiânia",
+    "goiania",
+    "maceió",
+    "maceio",
+    "natal",
+    "joão pessoa",
+    "joao pessoa",
+    "são luís",
+    "sao luis",
+    "aracaju",
+    "florianópolis",
+    "florianopolis",
+    "vitória",
+    "vitoria",
+    "cuiabá",
+    "cuiaba",
+    "campo grande",
+    "palmas",
+    "boa vista",
+    "rio branco",
+    "porto velho",
+    "macapá",
+    "macapa",
+  ];
+
+  return outsideKeywords.some((k) => text.includes(k));
+}
+
 function parseXTrendsFromHtml(html, source, today) {
   const now = new Date();
   const time = now.toLocaleTimeString("pt-BR", {
@@ -959,6 +1036,7 @@ async function buildTrends() {
     bbb: [],
     fofocas: [],
     celebridades: [],
+    fora_eixo: [],
     esportes: [],
     noticias: [],
     mundo_fofocas: [],
@@ -967,8 +1045,16 @@ async function buildTrends() {
   };
 
   for (const section of SECTION_KEYS) {
-    const ranked = grouped
-      .filter((item) => item.category === section)
+    const baseItems =
+      section === "fora_eixo"
+        ? grouped.filter(
+            (item) =>
+              ["fofocas", "celebridades", "noticias"].includes(item.category) &&
+              isOutsideRioSaoPaulo(item),
+          )
+        : grouped.filter((item) => item.category === section);
+
+    const ranked = baseItems
       .filter((item) => {
         const source = String(item.source || "").toLowerCase();
         if (section === "noticias") {
@@ -1139,7 +1225,7 @@ async function refreshData(force = false) {
 
     // Acumula score por hora (00-23) e também snapshot por refresh.
     const topicScores = {};
-    for (const section of SECTION_KEYS) {
+    for (const section of PULSE_SECTIONS) {
       const items = Array.isArray(trends?.[section]) ? trends[section] : [];
       for (const item of items) {
         const rawTopic = derivePulseTopic(item);
