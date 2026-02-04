@@ -776,7 +776,8 @@
 
                 if (!response.ok) {
                     const backendError = data?.error || 'Erro na API';
-                    throw new Error(`${backendError} - Código: ${response.status}`);
+                    const backendDetails = data?.details ? ` (${data.details})` : '';
+                    throw new Error(`${backendError}${backendDetails} - Código: ${response.status}`);
                 }
 
                 const trends = data;
@@ -789,7 +790,9 @@
                 status.className = 'status success';
                 const ok = trends?.meta?.sources_ok ?? '?';
                 const total = trends?.meta?.sources_total ?? '?';
-                status.textContent = silent
+                status.textContent = trends?.meta?.warning
+                    ? `⚠️ ${trends.meta.warning} (${ok}/${total} fontes ok)`
+                    : silent
                     ? `⚡ Atualização automática concluída (${ok}/${total} fontes ok)`
                     : `✅ Trends atualizadas com sucesso! (${ok}/${total} fontes ok)`;
 

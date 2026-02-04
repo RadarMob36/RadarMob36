@@ -476,50 +476,54 @@ function isLikelyXTrendTopic(name) {
 }
 
 function extractCelebrityName(text) {
-  const raw = String(text || "").replace(/\s+/g, " ").trim();
-  if (!raw) return null;
+  try {
+    const raw = String(text || "").replace(/\s+/g, " ").trim();
+    if (!raw) return null;
 
-  const blockedStarts = [
-    "Marido",
-    "Esposa",
-    "Filha",
-    "Filho",
-    "Camarote",
-    "Espetáculo",
-    "Novela",
-    "Reality",
-    "Big Brother",
-    "BBB",
-  ];
-  const blockedWhole = [
-    "Raizes Em Movimento",
-    "Raízes Em Movimento",
-    "Tela Quente",
-    "Globo",
-    "Carnaval 2026",
-  ];
+    const blockedStarts = [
+      "Marido",
+      "Esposa",
+      "Filha",
+      "Filho",
+      "Camarote",
+      "Espetáculo",
+      "Novela",
+      "Reality",
+      "Big Brother",
+      "BBB",
+    ];
+    const blockedWhole = [
+      "Raizes Em Movimento",
+      "Raízes Em Movimento",
+      "Tela Quente",
+      "Globo",
+      "Carnaval 2026",
+    ];
 
-  const candidates = [];
-  const prepositionHit = raw.match(
-    /(?:de|com|sobre|contra|ap[oó]s)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){1,2})/,
-  );
-  if (prepositionHit?.[1]) candidates.push(prepositionHit[1]);
+    const candidates = [];
+    const prepositionHit = raw.match(
+      /(?:de|com|sobre|contra|ap[oó]s)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){1,2})/,
+    );
+    if (prepositionHit?.[1]) candidates.push(prepositionHit[1]);
 
-  const regex =
-    /\b([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){1,2})\b/g;
-  let match;
-  while ((match = regex.exec(raw))) {
-    if (match[1]) candidates.push(match[1]);
+    const regex =
+      /\b([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){1,2})\b/g;
+    let match;
+    while ((match = regex.exec(raw))) {
+      if (match[1]) candidates.push(match[1]);
+    }
+
+    for (const c of candidates) {
+      const clean = c.replace(/\s+/g, " ").trim();
+      if (!clean || clean.length < 5) continue;
+      if (blockedWhole.some((w) => w.toLowerCase() === clean.toLowerCase())) continue;
+      if (blockedStarts.some((s) => clean.startsWith(s))) continue;
+      return clean;
+    }
+    return null;
+  } catch {
+    return null;
   }
-
-  for (const c of candidates) {
-    const clean = c.replace(/\s+/g, " ").trim();
-    if (!clean || clean.length < 5) continue;
-    if (blockedWhole.some((w) => w.toLowerCase() === clean.toLowerCase())) continue;
-    if (blockedStarts.some((s) => clean.startsWith(s))) continue;
-    return clean;
-  }
-  return null;
 }
 
 function derivePulseTopic(item) {
@@ -1338,6 +1342,17 @@ async function handleTrends(_req, res) {
     }
     sendJson(res, 200, state.trends);
   } catch (error) {
+    if (state.trends) {
+      const fallback = {
+        ...state.trends,
+        meta: {
+          ...(state.trends.meta || {}),
+          warning: "Falha no refresh em tempo real; exibindo último snapshot válido.",
+        },
+      };
+      sendJson(res, 200, fallback);
+      return;
+    }
     sendJson(res, 500, {
       error: "Falha ao buscar trends em fontes abertas.",
       details: error instanceof Error ? error.message : String(error),
