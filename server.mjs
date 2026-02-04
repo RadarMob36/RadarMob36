@@ -400,7 +400,6 @@ function extractShortXTopic(title) {
 function derivePulseTopic(item) {
   const name = String(item?.name || "");
   const desc = String(item?.desc || "");
-  const source = String(item?.source || "").toLowerCase();
   let text = `${name} ${desc}`.toLowerCase();
 
   if (item?.category === "bbb") return "BBB";
@@ -419,8 +418,6 @@ function derivePulseTopic(item) {
     .trim();
 
   if (/\bbbb\b|big brother|pared[aã]o|anjo|prova do l[ií]der/.test(text)) return "BBB";
-  if (/\btiktok\b|#fyp|foryou|viral/.test(text)) return "TikTok";
-  if (/\bx\b|twitter|trend topics/.test(text) && source.includes("x")) return "X / Twitter";
 
   const teams = [
     "flamengo",
@@ -443,23 +440,27 @@ function derivePulseTopic(item) {
   for (const team of teams) {
     if (text.includes(team)) return team.replace(/\b\w/g, (c) => c.toUpperCase());
   }
-  if (/\bfutebol\b|brasileir[aã]o|libertadores|copa do brasil|champions|nba|nfl|ufc|f1/.test(text)) {
-    return "Esportes";
+  if (/\b(brasileir[aã]o|libertadores|copa do brasil)\b/.test(text)) {
+    return "Brasileirão / Jogos";
+  }
+  if (/\bfutebol\b|champions|nba|nfl|ufc|f1/.test(text)) {
+    return "Jogos de Hoje";
   }
 
-  const hashtag = name.match(/#([A-Za-z0-9_]+)/);
-  if (hashtag?.[1]) return `#${hashtag[1].toUpperCase()}`;
+  const hashtags = `${name} ${desc}`.match(/#([A-Za-z0-9_]+)/g) || [];
+  const usefulTag = hashtags.find((h) => !/^#(fyp|foryou|viral|trend|brasil)$/i.test(h));
+  if (usefulTag) return usefulTag.toUpperCase();
 
-  // Pega um rótulo curto e útil do título.
+  // Pega um rótulo curto e útil do título (sem canal/plataforma).
   const cleanedTitle = name
-    .replace(/\b(G1|CNN Brasil|UOL|Splash|Purepeople|Contigo|OFuxico|Quem|Extra|TMZ|Deuxmoi|Alfinetei|Choquei)\b/gi, "")
+    .replace(/\b(G1|CNN Brasil|UOL|Splash|Purepeople|Contigo|OFuxico|Quem|Extra|TMZ|Deuxmoi|Alfinetei|Choquei|TikTok|Twitter|X|Trend|Topics|Brasil|Hoje|Agora)\b/gi, "")
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
-  const short = cleanedTitle.split(/\s+/).slice(0, 2).join(" ");
+  const short = cleanedTitle.split(/\s+/).slice(0, 3).join(" ");
 
   if (!short || short.length < 3) return null;
-  if (/^(alfinetei|choquei|gossip|instagram|portal)$/i.test(short)) return null;
+  if (/^(alfinetei|choquei|gossip|instagram|portal|x|twitter|tiktok)$/i.test(short)) return null;
   return short;
 }
 

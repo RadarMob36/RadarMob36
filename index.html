@@ -25,13 +25,13 @@
         rel="stylesheet">
     <style>
         :root {
-            --primary: #FF0080;
-            --secondary: #7928CA;
-            --accent: #00DFD8;
-            --dark: #090b1f;
-            --light: #f6f8ff;
-            --panel: rgba(255, 255, 255, 0.08);
-            --panel-border: rgba(255, 255, 255, 0.16);
+            --primary: #e7e216;
+            --secondary: #b8b400;
+            --accent: #59f2ff;
+            --dark: #070707;
+            --light: #f5f5f5;
+            --panel: rgba(18, 18, 18, 0.86);
+            --panel-border: rgba(231, 226, 22, 0.25);
         }
 
         * {
@@ -43,10 +43,10 @@
         body {
             font-family: 'Work Sans', sans-serif;
             background:
-                radial-gradient(circle at 8% 8%, rgba(0, 223, 216, 0.18), transparent 38%),
-                radial-gradient(circle at 82% 14%, rgba(255, 0, 128, 0.2), transparent 36%),
-                radial-gradient(circle at 52% 90%, rgba(121, 40, 202, 0.24), transparent 44%),
-                linear-gradient(145deg, #0f1233 0%, #0a0d28 52%, #140b2d 100%);
+                radial-gradient(circle at 15% 10%, rgba(231, 226, 22, 0.22), transparent 36%),
+                radial-gradient(circle at 86% 20%, rgba(89, 242, 255, 0.16), transparent 30%),
+                radial-gradient(circle at 50% 100%, rgba(231, 226, 22, 0.12), transparent 45%),
+                linear-gradient(145deg, #070707 0%, #0b0b0b 55%, #111111 100%);
             color: var(--light);
             overflow-x: hidden;
             position: relative;
@@ -119,7 +119,7 @@
         .header h1 {
             font-family: 'Bebas Neue', cursive;
             font-size: clamp(3rem, 8vw, 7rem);
-            background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent));
+            background: linear-gradient(135deg, #fffde0, var(--primary), #c8c400);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -144,8 +144,8 @@
         }
 
         .date-badge {
-            background: rgba(255, 0, 128, 0.18);
-            border: 1px solid rgba(255, 0, 128, 0.55);
+            background: rgba(231, 226, 22, 0.14);
+            border: 1px solid rgba(231, 226, 22, 0.45);
             padding: 12px 25px;
             border-radius: 30px;
             font-size: 1rem;
@@ -185,11 +185,11 @@
         }
 
         .reload-btn {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            background: linear-gradient(135deg, #fff96b, var(--primary), #b9b400);
             border: none;
             padding: 15px 40px;
             border-radius: 50px;
-            color: white;
+            color: #131313;
             font-weight: 800;
             font-size: 1.1rem;
             cursor: pointer;
@@ -197,12 +197,12 @@
             text-transform: uppercase;
             letter-spacing: 0.05em;
             font-family: 'Work Sans', sans-serif;
-            box-shadow: 0 10px 30px rgba(255, 0, 128, 0.3);
+            box-shadow: 0 10px 30px rgba(231, 226, 22, 0.35);
         }
 
         .reload-btn:hover {
             transform: scale(1.05);
-            box-shadow: 0 15px 40px rgba(255, 0, 128, 0.5);
+            box-shadow: 0 15px 40px rgba(231, 226, 22, 0.48);
         }
 
         .reload-btn:active {
@@ -257,7 +257,7 @@
             font-family: 'Bebas Neue', cursive;
             letter-spacing: 0.05em;
             font-size: 1.8rem;
-            background: linear-gradient(135deg, var(--accent), var(--primary));
+            background: linear-gradient(135deg, var(--primary), #fff8a6);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -373,7 +373,7 @@
             left: 0;
             width: 100%;
             height: 4px;
-            background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent));
+            background: linear-gradient(90deg, #fff8a6, var(--primary), var(--accent));
             transform: scaleX(0);
             transition: transform 0.4s;
         }
@@ -381,7 +381,7 @@
         .trend-card:hover {
             transform: translateY(-10px);
             border-color: var(--primary);
-            box-shadow: 0 20px 60px rgba(255, 0, 128, 0.2);
+            box-shadow: 0 20px 60px rgba(231, 226, 22, 0.18);
         }
 
         .trend-card:hover::before {
@@ -432,7 +432,7 @@
             font-family: 'Bebas Neue', cursive;
             font-size: 1.8rem;
             letter-spacing: 0.05em;
-            background: linear-gradient(135deg, var(--primary), var(--accent));
+            background: linear-gradient(135deg, #fffde0, var(--primary));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -448,7 +448,7 @@
         }
 
         .trend-item:hover {
-            background: rgba(255, 0, 128, 0.16);
+            background: rgba(231, 226, 22, 0.12);
             border-left-color: var(--primary);
             transform: translateX(10px);
         }
@@ -511,18 +511,18 @@
         }
 
         .badge-hot {
-            background: linear-gradient(135deg, #FF0080, #FF4D00);
-            color: white;
+            background: linear-gradient(135deg, #fff36d, #d7d300);
+            color: #111;
         }
 
         .badge-rising {
-            background: linear-gradient(135deg, #FFB800, #FFA000);
-            color: white;
+            background: linear-gradient(135deg, #7cff87, #38d34d);
+            color: #0d1b0f;
         }
 
         .badge-new {
-            background: linear-gradient(135deg, #00DFD8, #007CF0);
-            color: white;
+            background: linear-gradient(135deg, #7be8ff, #3db5ff);
+            color: #071826;
         }
 
         .loading-overlay {
