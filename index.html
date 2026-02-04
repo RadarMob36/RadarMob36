@@ -296,6 +296,22 @@
             gap: 10px;
         }
 
+        .pulse-insights {
+            margin-top: 12px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 10px;
+        }
+
+        .pulse-insight {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 0.9rem;
+            color: rgba(245, 245, 245, 0.92);
+        }
+
         .pulse-legend {
             display: flex;
             flex-wrap: wrap;
@@ -653,6 +669,7 @@
             </div>
             <div class="pulse-legend" id="pulseLegend"></div>
             <div class="pulse-movers" id="pulseMovers"></div>
+            <div class="pulse-insights" id="pulseInsights"></div>
         </div>
 
         <div class="trends-grid" id="trendsGrid"></div>
@@ -707,6 +724,7 @@
 
         let pulseData = null;
         let pulseRenderState = null;
+        let latestTrends = null;
         let isUpdating = false;
         const AUTO_REFRESH_MS = 120000;
         const PULSE_COLORS = ['#00DFD8', '#FF0080', '#FFB800', '#7CFF00', '#7AA2FF'];
@@ -742,6 +760,7 @@
                 }
 
                 const trends = data;
+                latestTrends = trends;
 
                 // Renderizar
                 renderTrends(trends);
@@ -782,6 +801,7 @@
             renderPulseChart();
             renderPulseLegend();
             renderPulseMovers();
+            renderPulseInsights(latestTrends);
             const pulseMeta = document.getElementById('pulseMeta');
             const pulseDay = document.getElementById('pulseDay');
             const checkpoints = pulseData?.meta?.checkpoints || 0;
@@ -962,6 +982,55 @@
                     <span class="pulse-delta">${item.delta > 0 ? '+' + item.delta : item.score + 'pts'}</span>${item.name}
                 </div>
             `).join('');
+        }
+
+        function renderPulseInsights(trends) {
+            const box = document.getElementById('pulseInsights');
+            const movers = Array.isArray(pulseData?.movers) ? pulseData.movers : [];
+            if (!movers.length || !trends) {
+                box.innerHTML = '';
+                return;
+            }
+
+            const sectionNames = {
+                bbb: 'BBB',
+                fofocas: 'Fofocas BR',
+                celebridades: 'Celebridades',
+                esportes: 'Esportes',
+                noticias: 'Notícias',
+                mundo_fofocas: 'Mundo',
+                x_twitter: 'X',
+                tiktok: 'TikTok'
+            };
+
+            const allItems = [];
+            Object.entries(trends).forEach(([key, list]) => {
+                if (!Array.isArray(list)) return;
+                list.forEach((item) => allItems.push({ ...item, section: key }));
+            });
+
+            const insights = movers.slice(0, 3).map((mover) => {
+                const q = String(mover.name || '').toLowerCase();
+                const tokens = q.split(/\s+/).filter((t) => t.length > 2);
+                const related = allItems.filter((item) => {
+                    const text = `${item.name || ''} ${item.desc || ''}`.toLowerCase();
+                    if (!tokens.length) return false;
+                    return tokens.some((t) => text.includes(t));
+                });
+
+                const sourceSet = [...new Set(related.map((x) => x.source).filter(Boolean))];
+                const sections = [...new Set(related.map((x) => sectionNames[x.section]).filter(Boolean))];
+                const firstSources = sourceSet.slice(0, 3).join(', ');
+                const sectionText = sections.length ? ` em ${sections.join(', ')}` : '';
+
+                if (!related.length) {
+                    return `${mover.name} está em alta no pulso (${mover.score} pts).`;
+                }
+
+                return `${mover.name} está em alta${sectionText} porque apareceu em ${sourceSet.length} fonte(s): ${firstSources}.`;
+            });
+
+            box.innerHTML = insights.map((text) => `<div class="pulse-insight">${text}</div>`).join('');
         }
 
         function renderTrends(trends) {
