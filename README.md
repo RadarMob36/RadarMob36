@@ -16,4 +16,4 @@ Depois abra:
 - Inclui sinais de X/Twitter via RSS do Google News (sem API paga do X)
 - Filtra automaticamente para data de hoje (America/Sao_Paulo)
 - Frontend mostra resultados em tempo real ao abrir e ao clicar em atualizar
-- Painel de pulso instantâneo com gráfico de subida e movers do último ciclo
+- Pulso instantâneo global (no servidor) com multi-linhas por assunto e movers

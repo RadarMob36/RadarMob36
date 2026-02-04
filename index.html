@@ -260,6 +260,28 @@
             gap: 10px;
         }
 
+        .pulse-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 12px;
+            margin-bottom: 10px;
+            font-size: 0.8rem;
+            color: rgba(240, 244, 248, 0.8);
+        }
+
+        .pulse-legend-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pulse-legend-dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
         .pulse-item {
             background: rgba(255, 255, 255, 0.04);
             border: 1px solid rgba(255, 255, 255, 0.08);
@@ -574,6 +596,7 @@
             <div class="pulse-chart-wrap">
                 <canvas id="pulseChart" class="pulse-chart"></canvas>
             </div>
+            <div class="pulse-legend" id="pulseLegend"></div>
             <div class="pulse-movers" id="pulseMovers"></div>
         </div>
 
@@ -617,9 +640,10 @@
             document.getElementById('dateDisplay').textContent = texto;
         }
 
-        const trendHistory = [];
+        let pulseData = null;
         let isUpdating = false;
         const AUTO_REFRESH_MS = 120000;
+        const PULSE_COLORS = ['#00DFD8', '#FF0080', '#FFB800', '#7CFF00', '#7AA2FF'];
 
         async function atualizarTrends(silent = false) {
             if (isUpdating) return;
@@ -655,7 +679,7 @@
 
                 // Renderizar
                 renderTrends(trends);
-                atualizarPulso(trends);
+                await carregarPulsoGlobal();
 
                 status.className = 'status success';
                 status.textContent = silent ? '⚡ Atualização automática concluída' : '✅ Trends atualizadas com sucesso!';
@@ -679,46 +703,19 @@
             }
         }
 
-        function getBadgeWeight(badge) {
-            if (badge === 'hot') return 3;
-            if (badge === 'rising') return 2;
-            return 1;
-        }
-
-        function normalizeName(text) {
-            return String(text || '').toLowerCase().replace(/\s+/g, ' ').trim();
-        }
-
-        function atualizarPulso(trends) {
-            const now = new Date();
-            const scoreMap = {};
-            let totalScore = 0;
-
-            Object.keys(trends).forEach((key) => {
-                if (!Array.isArray(trends[key])) return;
-                trends[key].forEach((item) => {
-                    const name = normalizeName(item.name);
-                    if (!name) return;
-                    const score = getBadgeWeight(item.badge);
-                    scoreMap[name] = (scoreMap[name] || 0) + score;
-                    totalScore += score;
-                });
-            });
-
-            trendHistory.push({
-                ts: now.getTime(),
-                totalScore,
-                scoreMap
-            });
-
-            while (trendHistory.length > 20) {
-                trendHistory.shift();
+        async function carregarPulsoGlobal() {
+            const response = await fetch('/api/pulse');
+            if (!response.ok) {
+                throw new Error(`Pulso indisponível (${response.status})`);
             }
-
+            pulseData = await response.json();
             renderPulseChart();
+            renderPulseLegend();
             renderPulseMovers();
             const pulseMeta = document.getElementById('pulseMeta');
-            pulseMeta.textContent = `Últimos ${trendHistory.length} checkpoints • auto refresh 2 min`;
+            const checkpoints = pulseData?.meta?.checkpoints || 0;
+            const refreshMs = pulseData?.meta?.refresh_ms || AUTO_REFRESH_MS;
+            pulseMeta.textContent = `Global: ${checkpoints} checkpoints • auto refresh ${Math.round(refreshMs / 60000)} min`;
         }
 
         function renderPulseChart() {
@@ -737,7 +734,11 @@
             ctx.scale(dpr, dpr);
             ctx.clearRect(0, 0, width, height);
 
-            const values = trendHistory.map((x) => x.totalScore);
+            const checkpoints = Array.isArray(pulseData?.checkpoints) ? pulseData.checkpoints : [];
+            const series = Array.isArray(pulseData?.series) ? pulseData.series : [];
+            if (!checkpoints.length || !series.length) return;
+
+            const values = checkpoints.map((x) => Number(x.total) || 0);
             if (!values.length) return;
 
             const min = Math.min(...values);
@@ -757,58 +758,57 @@
             ctx.lineTo(right, bottom);
             ctx.stroke();
 
-            ctx.beginPath();
-            values.forEach((v, i) => {
-                const x = left + i * stepX;
-                const y = isFlat ? (top + bottom) / 2 : bottom - ((v - min) / range) * (bottom - top);
-                if (i === 0) ctx.moveTo(x, y);
-                else ctx.lineTo(x, y);
-            });
-            ctx.strokeStyle = '#00DFD8';
-            ctx.lineWidth = 2.5;
-            ctx.stroke();
-
-            values.forEach((v, i) => {
-                const x = left + i * stepX;
-                const y = isFlat ? (top + bottom) / 2 : bottom - ((v - min) / range) * (bottom - top);
+            series.forEach((line, idx) => {
+                const lineValues = (line.points || []).map((p) => Number(p.value) || 0);
                 ctx.beginPath();
-                ctx.arc(x, y, 3, 0, Math.PI * 2);
-                ctx.fillStyle = '#FF0080';
-                ctx.fill();
+                lineValues.forEach((v, i) => {
+                    const x = left + i * stepX;
+                    const y = isFlat ? (top + bottom) / 2 : bottom - ((v - min) / range) * (bottom - top);
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                });
+                ctx.strokeStyle = PULSE_COLORS[idx % PULSE_COLORS.length];
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                lineValues.forEach((v, i) => {
+                    const x = left + i * stepX;
+                    const y = isFlat ? (top + bottom) / 2 : bottom - ((v - min) / range) * (bottom - top);
+                    ctx.beginPath();
+                    ctx.arc(x, y, 2.4, 0, Math.PI * 2);
+                    ctx.fillStyle = PULSE_COLORS[idx % PULSE_COLORS.length];
+                    ctx.fill();
+                });
             });
+        }
+
+        function renderPulseLegend() {
+            const legend = document.getElementById('pulseLegend');
+            const series = Array.isArray(pulseData?.series) ? pulseData.series : [];
+            if (!series.length) {
+                legend.innerHTML = '';
+                return;
+            }
+
+            legend.innerHTML = series.map((line, idx) => `
+                <span class="pulse-legend-item">
+                    <span class="pulse-legend-dot" style="background:${PULSE_COLORS[idx % PULSE_COLORS.length]}"></span>
+                    ${line.name}
+                </span>
+            `).join('');
         }
 
         function renderPulseMovers() {
             const box = document.getElementById('pulseMovers');
-            if (trendHistory.length < 2) {
-                box.innerHTML = '<div class="pulse-item">Coletando variação... faça mais atualizações.</div>';
+            const movers = Array.isArray(pulseData?.movers) ? pulseData.movers : [];
+            if (!movers.length) {
+                box.innerHTML = '<div class="pulse-item">Coletando variação global...</div>';
                 return;
             }
 
-            const prev = trendHistory[trendHistory.length - 2].scoreMap;
-            const curr = trendHistory[trendHistory.length - 1].scoreMap;
-            const deltas = Object.keys(curr).map((name) => ({
-                name,
-                delta: (curr[name] || 0) - (prev[name] || 0)
-            }))
-                .filter((x) => x.delta > 0)
-                .sort((a, b) => b.delta - a.delta)
-                .slice(0, 6);
-
-            if (!deltas.length) {
-                const topNow = Object.entries(curr)
-                    .sort((a, b) => b[1] - a[1])
-                    .slice(0, 6);
-
-                box.innerHTML = topNow.length
-                    ? topNow.map(([name, score]) => `<div class="pulse-item"><span class="pulse-delta">${score}pts</span>${name}</div>`).join('')
-                    : '<div class="pulse-item">Sem alta forte no último ciclo.</div>';
-                return;
-            }
-
-            box.innerHTML = deltas.map((item) => `
+            box.innerHTML = movers.slice(0, 8).map((item) => `
                 <div class="pulse-item">
-                    <span class="pulse-delta">+${item.delta}</span>${item.name}
+                    <span class="pulse-delta">${item.delta > 0 ? '+' + item.delta : item.score + 'pts'}</span>${item.name}
                 </div>
             `).join('');
         }

@@ -33,6 +33,9 @@ loadDotEnv();
 
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || "127.0.0.1";
+const REFRESH_MS = Number(process.env.REFRESH_MS || 120000);
+const MAX_PULSE_POINTS = 40;
+const PULSE_TOPICS = 5;
 const SECTION_KEYS = [
   "bbb",
   "fofocas",
@@ -201,6 +204,10 @@ function buildFallbackUrl(name, category) {
   return `https://trends.google.com/trends/explore?geo=BR&q=${q}`;
 }
 
+function normalizeTopicName(name) {
+  return String(name || "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
 function categoryFromText(text, hint) {
   const t = text.toLowerCase();
 
@@ -362,13 +369,159 @@ async function buildTrends() {
   return payload;
 }
 
-async function handleTrends(_req, res) {
+function itemScore(item) {
+  if (item.badge === "hot") return 3;
+  if (item.badge === "rising") return 2;
+  return 1;
+}
+
+function buildScoreMap(trends) {
+  const scores = {};
+  for (const section of SECTION_KEYS) {
+    const items = Array.isArray(trends?.[section]) ? trends[section] : [];
+    for (const item of items) {
+      const key = normalizeTopicName(item.name);
+      if (!key) continue;
+      scores[key] = (scores[key] || 0) + itemScore(item);
+    }
+  }
+  return scores;
+}
+
+function computeTotalScore(scoreMap) {
+  return Object.values(scoreMap).reduce((acc, value) => acc + value, 0);
+}
+
+const state = {
+  trends: null,
+  pulse: [],
+  lastRefreshTs: 0,
+  refreshing: false,
+  lastError: null,
+};
+
+async function refreshData(force = false) {
+  const now = Date.now();
+  const freshEnough = now - state.lastRefreshTs < REFRESH_MS / 2;
+  if (!force && state.trends && freshEnough) return;
+  if (state.refreshing) return;
+
+  state.refreshing = true;
   try {
     const trends = await buildTrends();
-    sendJson(res, 200, trends);
+    const scoreMap = buildScoreMap(trends);
+    const checkpoint = {
+      ts: new Date().toISOString(),
+      total: computeTotalScore(scoreMap),
+      topics: scoreMap,
+    };
+
+    state.trends = trends;
+    state.lastRefreshTs = now;
+    state.lastError = null;
+    state.pulse.push(checkpoint);
+    if (state.pulse.length > MAX_PULSE_POINTS) {
+      state.pulse.shift();
+    }
+  } catch (error) {
+    state.lastError = error instanceof Error ? error.message : String(error);
+    throw error;
+  } finally {
+    state.refreshing = false;
+  }
+}
+
+function buildPulsePayload() {
+  const checkpoints = state.pulse.map((cp) => ({
+    ts: cp.ts,
+    total: cp.total,
+  }));
+
+  if (!state.pulse.length) {
+    return {
+      checkpoints: [],
+      series: [],
+      movers: [],
+      meta: {
+        refresh_ms: REFRESH_MS,
+        checkpoints: 0,
+      },
+    };
+  }
+
+  const latest = state.pulse[state.pulse.length - 1].topics;
+  const topicNames = Object.entries(latest)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, PULSE_TOPICS)
+    .map(([name]) => name);
+
+  const series = topicNames.map((name) => ({
+    name,
+    points: state.pulse.map((cp) => ({
+      ts: cp.ts,
+      value: cp.topics[name] || 0,
+    })),
+  }));
+
+  let movers = [];
+  if (state.pulse.length >= 2) {
+    const prev = state.pulse[state.pulse.length - 2].topics;
+    movers = Object.entries(latest)
+      .map(([name, value]) => ({
+        name,
+        delta: value - (prev[name] || 0),
+        score: value,
+      }))
+      .filter((m) => m.delta > 0)
+      .sort((a, b) => b.delta - a.delta)
+      .slice(0, 8);
+  }
+
+  if (!movers.length) {
+    movers = Object.entries(latest)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([name, value]) => ({
+        name,
+        delta: 0,
+        score: value,
+      }));
+  }
+
+  return {
+    checkpoints,
+    series,
+    movers,
+    meta: {
+      refresh_ms: REFRESH_MS,
+      checkpoints: state.pulse.length,
+      last_refresh: checkpoints.at(-1)?.ts || null,
+    },
+  };
+}
+
+async function handleTrends(_req, res) {
+  try {
+    await refreshData(false);
+    if (!state.trends) {
+      throw new Error("Sem dados disponíveis no momento.");
+    }
+    sendJson(res, 200, state.trends);
   } catch (error) {
     sendJson(res, 500, {
       error: "Falha ao buscar trends em fontes abertas.",
+      details: error instanceof Error ? error.message : String(error),
+    });
+  }
+}
+
+async function handlePulse(_req, res) {
+  try {
+    await refreshData(false);
+    sendJson(res, 200, buildPulsePayload());
+  } catch (error) {
+    sendJson(res, 500, {
+      error: "Falha ao montar pulso global.",
       details: error instanceof Error ? error.message : String(error),
     });
   }
@@ -401,6 +554,11 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  if (req.method === "GET" && req.url === "/api/pulse") {
+    await handlePulse(req, res);
+    return;
+  }
+
   if (req.method === "GET") {
     await serveStatic(res, req.url || "/");
     return;
@@ -412,4 +570,12 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   console.log(`Servidor rodando em http://${HOST}:${PORT}`);
+  refreshData(true).catch((error) => {
+    console.error("Falha no carregamento inicial:", error);
+  });
+  setInterval(() => {
+    refreshData(true).catch((error) => {
+      console.error("Falha no refresh automático:", error);
+    });
+  }, REFRESH_MS);
 });
