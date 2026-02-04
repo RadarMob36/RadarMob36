@@ -115,6 +115,16 @@ const SOURCES = [
     hint: "fofocas",
   },
   {
+    name: "Leo Dias Famosos",
+    url: "https://news.google.com/rss/search?q=site:portalleodias.com/famosos&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "celebridades",
+  },
+  {
+    name: "Leo Dias Redes Sociais",
+    url: "https://news.google.com/rss/search?q=site:portalleodias.com/redes-sociais&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "celebridades",
+  },
+  {
     name: "Purepeople",
     url: "https://news.google.com/rss/search?q=site:purepeople.com.br&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "fofocas",
