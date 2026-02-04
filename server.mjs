@@ -475,6 +475,53 @@ function isLikelyXTrendTopic(name) {
   return hasUsefulToken;
 }
 
+function extractCelebrityName(text) {
+  const raw = String(text || "").replace(/\s+/g, " ").trim();
+  if (!raw) return null;
+
+  const blockedStarts = [
+    "Marido",
+    "Esposa",
+    "Filha",
+    "Filho",
+    "Camarote",
+    "Espetáculo",
+    "Novela",
+    "Reality",
+    "Big Brother",
+    "BBB",
+  ];
+  const blockedWhole = [
+    "Raizes Em Movimento",
+    "Raízes Em Movimento",
+    "Tela Quente",
+    "Globo",
+    "Carnaval 2026",
+  ];
+
+  const candidates = [];
+  const prepositionHit = raw.match(
+    /(?:de|com|sobre|contra|ap[oó]s)\s+([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){1,2})/,
+  );
+  if (prepositionHit?.[1]) candidates.push(prepositionHit[1]);
+
+  const regex =
+    /\b([A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+(?:\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][a-záéíóúâêôãõç]+){1,2})\b/g;
+  let match;
+  while ((match = regex.exec(raw))) {
+    if (match[1]) candidates.push(match[1]);
+  }
+
+  for (const c of candidates) {
+    const clean = c.replace(/\s+/g, " ").trim();
+    if (!clean || clean.length < 5) continue;
+    if (blockedWhole.some((w) => w.toLowerCase() === clean.toLowerCase())) continue;
+    if (blockedStarts.some((s) => clean.startsWith(s))) continue;
+    return clean;
+  }
+  return null;
+}
+
 function derivePulseTopic(item) {
   const name = String(item?.name || "");
   const desc = String(item?.desc || "");
@@ -956,12 +1003,41 @@ async function buildTrends() {
       .filter((item) => item.age_hours <= 48);
 
     // Preferencia: itens de hoje, depois fallback recente para completar 10.
-    const todayItems = ranked.filter((x) => x.is_today);
-    const fallback = ranked.filter((x) => !x.is_today);
-    const selected = [...todayItems, ...fallback].slice(0, 10);
+    let working = ranked;
+    if (section === "celebridades") {
+      working = ranked.map((item) => {
+        const celeb = extractCelebrityName(`${item.name} ${item.desc || ""}`);
+        return { ...item, celeb };
+      });
+
+      working.sort((a, b) => {
+        const ca = a.celeb ? 1 : 0;
+        const cb = b.celeb ? 1 : 0;
+        if (cb !== ca) return cb - ca;
+        if (b.heatScore !== a.heatScore) return b.heatScore - a.heatScore;
+        const ta = Date.parse(`${a.published_at}T${a.published_time || "00:00:00"}-03:00`);
+        const tb = Date.parse(`${b.published_at}T${b.published_time || "00:00:00"}-03:00`);
+        return tb - ta;
+      });
+    }
+
+    const todayItems = working.filter((x) => x.is_today);
+    const fallback = working.filter((x) => !x.is_today);
+    let selected = [...todayItems, ...fallback].slice(0, 10);
+    if (section === "celebridades") {
+      const unique = [];
+      const seenCeleb = new Set();
+      for (const item of selected) {
+        const key = normalizeTopicName(item.celeb || item.name);
+        if (item.celeb && seenCeleb.has(key)) continue;
+        unique.push(item);
+        if (item.celeb) seenCeleb.add(key);
+      }
+      selected = unique.slice(0, 10);
+    }
 
     payload[section] = selected.map((item, idx) => ({
-        name: item.name,
+        name: section === "celebridades" && item.celeb ? item.celeb : item.name,
         badge: idx < 2 ? "hot" : idx < 6 ? "rising" : "new",
         desc: item.desc,
         source: item.source,

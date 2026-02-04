@@ -1022,9 +1022,13 @@
                 return;
             }
 
-            box.innerHTML = movers.slice(0, 8).map((item) => `
+            const topByScore = [...movers]
+                .sort((a, b) => (Number(b.score) || 0) - (Number(a.score) || 0))
+                .slice(0, 3);
+
+            box.innerHTML = topByScore.map((item) => `
                 <div class="pulse-item">
-                    <span class="pulse-delta">${item.delta > 0 ? '+' + item.delta : item.score + 'pts'}</span>${item.name}
+                    <span class="pulse-delta">${item.score}pts</span>${item.name}
                 </div>
             `).join('');
         }
