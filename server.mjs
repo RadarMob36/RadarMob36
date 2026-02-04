@@ -59,8 +59,6 @@ const CELEBRITY_SOURCES = [
   "choquei",
   "alfinetei",
   "rainha matos",
-  "vem me buscar hebe",
-  "beyonce destruidora",
   "tmz",
   "deuxmoi",
   "revistaquem",
@@ -278,11 +276,6 @@ const SOURCES = [
     hint: "celebridades",
   },
   {
-    name: "Instagram Gossip do Dia",
-    url: "https://news.google.com/rss/search?q=site:instagram.com/gossipdodia&hl=pt-BR&gl=BR&ceid=BR:pt-419",
-    hint: "fofocas",
-  },
-  {
     name: "Choquei",
     url: "https://news.google.com/rss/search?q=Choquei+famosos+site:x.com&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "fofocas",
@@ -295,16 +288,6 @@ const SOURCES = [
   {
     name: "Rainha Matos",
     url: "https://news.google.com/rss/search?q=Rainha+Matos+famosos+site:x.com&hl=pt-BR&gl=BR&ceid=BR:pt-419",
-    hint: "fofocas",
-  },
-  {
-    name: "Vem Me Buscar Hebe",
-    url: "https://news.google.com/rss/search?q=Vem+Me+Buscar+Hebe+famosos&hl=pt-BR&gl=BR&ceid=BR:pt-419",
-    hint: "fofocas",
-  },
-  {
-    name: "Beyonce Destruidora",
-    url: "https://news.google.com/rss/search?q=Beyonce+Destruidora+famosos&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "fofocas",
   },
 ];
@@ -796,6 +779,17 @@ function isOutsideRioSaoPaulo(item) {
   return outsideKeywords.some((k) => text.includes(k));
 }
 
+function isSportsContent(item) {
+  const text = `${item?.name || ""} ${item?.desc || ""} ${item?.source || ""}`.toLowerCase();
+  if (/(lance|ge\.|ge |espn|otempo.*esport|uol esporte)/.test(text)) return true;
+  return /(futebol|jogo|rodada|campeonato|brasileir[aã]o|libertadores|copa do brasil|gol|zagueiro|volante|meia|atacante|patroc[ií]nio|palmeiras|flamengo|corinthians|santos|gr[eê]mio|internacional|cruzeiro|atl[eé]tico|fluminense|vasco|botafogo|bahia)/.test(text);
+}
+
+function isCultureOrGossipLocal(item) {
+  const text = `${item?.name || ""} ${item?.desc || ""} ${item?.source || ""}`.toLowerCase();
+  return /(fofoca|famos|celebr|atriz|ator|cantor|cantora|novela|reality|bbb|cultura|arte|show|m[uú]sica|festival|teatro|cinema|dan[cç]a|exposi[cç][aã]o|carnaval|bloco|influenciador|babado)/.test(text);
+}
+
 function parseXTrendsFromHtml(html, source, today) {
   const now = new Date();
   const time = now.toLocaleTimeString("pt-BR", {
@@ -1060,7 +1054,9 @@ async function buildTrends() {
         ? grouped.filter(
             (item) =>
               ["fofocas", "celebridades", "noticias"].includes(item.category) &&
-              isOutsideRioSaoPaulo(item),
+              isOutsideRioSaoPaulo(item) &&
+              isCultureOrGossipLocal(item) &&
+              !isSportsContent(item),
           )
         : grouped.filter((item) => item.category === section);
 
