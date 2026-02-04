@@ -194,6 +194,24 @@ const SOURCES = [
     hint: "x_twitter",
   },
   {
+    name: "Trend24 BR",
+    url: "https://trends24.in/brazil/",
+    hint: "x_twitter",
+    type: "x_html",
+  },
+  {
+    name: "Trend24 Sao Paulo",
+    url: "https://trends24.in/brazil/sao-paulo/",
+    hint: "x_twitter",
+    type: "x_html",
+  },
+  {
+    name: "GetDayTrends BR",
+    url: "https://getdaytrends.com/brazil/",
+    hint: "x_twitter",
+    type: "x_html",
+  },
+  {
     name: "TikTok BR Trends",
     url: "https://news.google.com/rss/search?q=site:tiktok.com+trending+brasil+when:1d&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "tiktok",
@@ -367,6 +385,18 @@ function normalizeTopicName(name) {
   return String(name || "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+function extractShortXTopic(title) {
+  const raw = String(title || "").trim();
+  const hash = raw.match(/#[A-Za-z0-9_]+/g);
+  if (hash && hash.length) return hash[0];
+  const clean = raw
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/[^\p{L}\p{N}#@\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return clean.split(" ").slice(0, 4).join(" ");
+}
+
 function derivePulseTopic(item) {
   const name = String(item?.name || "");
   const desc = String(item?.desc || "");
@@ -500,7 +530,7 @@ function parseRssItems(xml, source, today) {
       const allText = `${title} ${description} ${sourceName}`;
 
       return {
-        name: title,
+        name: source.hint === "x_twitter" ? extractShortXTopic(title) : title,
         badge: badgeForItem(idx, publishedAt, today),
         desc: description,
         source: sourceName,
@@ -514,6 +544,53 @@ function parseRssItems(xml, source, today) {
       };
     })
     .filter(Boolean);
+}
+
+function parseXTrendsFromHtml(html, source, today) {
+  const now = new Date();
+  const time = now.toLocaleTimeString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+  const candidates = [];
+  const anchorRegex = /<a[^>]*>([\s\S]*?)<\/a>/gi;
+  let match;
+  while ((match = anchorRegex.exec(html))) {
+    const text = cleanText(match[1]);
+    if (!text) continue;
+    if (text.length > 64) continue;
+    if (!/[#@]|[A-Za-zÀ-ÖØ-öø-ÿ]{3,}/.test(text)) continue;
+    if (/^(home|about|login|privacy|terms|contact|more)$/i.test(text)) continue;
+    candidates.push(text);
+  }
+
+  const seen = new Set();
+  return candidates
+    .map((name, idx) => ({
+      name: extractShortXTopic(name),
+      badge: idx < 3 ? "hot" : idx < 7 ? "rising" : "new",
+      desc: "Trend topic do X no Brasil",
+      source: source.name,
+      url: `https://x.com/search?q=${encodeURIComponent(name)}&src=typed_query`,
+      published_at: today,
+      published_time: time,
+      published_ts: now.getTime(),
+      is_today: true,
+      age_hours: 0,
+      category: "x_twitter",
+    }))
+    .filter((item) => item.name && item.name.length >= 2)
+    .filter((item) => {
+      const key = normalizeTopicName(item.name);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 20);
 }
 
 async function fetchText(url) {
@@ -539,8 +616,11 @@ async function buildTrends() {
   const today = todayIso();
   const tasks = SOURCES.map(async (source) => {
     try {
-      const xml = await fetchText(source.url);
-      const items = parseRssItems(xml, source, today);
+      const raw = await fetchText(source.url);
+      const items =
+        source.type === "x_html"
+          ? parseXTrendsFromHtml(raw, source, today)
+          : parseRssItems(raw, source, today);
       return { source: source.name, ok: true, items, count: items.length };
     } catch (error) {
       return {
@@ -659,6 +739,12 @@ async function buildTrends() {
         }
         if (section === "mundo_fofocas") {
           return /(tmz|deuxmoi|people|e! online|eonline)/.test(source);
+        }
+        if (section === "x_twitter") {
+          return (
+            /(trend24|getdaytrends|x \/ twitter|x trend topics)/.test(source) &&
+            String(item.name || "").length <= 40
+          );
         }
         return true;
       })
