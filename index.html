@@ -249,6 +249,12 @@
             font-size: 0.85rem;
         }
 
+        .pulse-day {
+            color: rgba(0, 223, 216, 0.9);
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+
         .pulse-chart-wrap {
             height: 180px;
             background: rgba(0, 0, 0, 0.2);
@@ -601,7 +607,10 @@
         <div class="pulse-panel">
             <div class="pulse-header">
                 <h3 class="pulse-title">Pulso Instantâneo</h3>
-                <span class="pulse-sub" id="pulseMeta">Aguardando dados...</span>
+                <div>
+                    <span class="pulse-sub" id="pulseMeta">Aguardando dados...</span>
+                    <span class="pulse-day" id="pulseDay"></span>
+                </div>
             </div>
             <div class="pulse-chart-wrap">
                 <canvas id="pulseChart" class="pulse-chart"></canvas>
@@ -736,9 +745,19 @@
             renderPulseLegend();
             renderPulseMovers();
             const pulseMeta = document.getElementById('pulseMeta');
+            const pulseDay = document.getElementById('pulseDay');
             const checkpoints = pulseData?.meta?.checkpoints || 0;
             const refreshMs = pulseData?.meta?.refresh_ms || AUTO_REFRESH_MS;
             pulseMeta.textContent = `Global: ${checkpoints} checkpoints • auto refresh ${Math.round(refreshMs / 60000)} min`;
+
+            const lastRefresh = pulseData?.meta?.last_refresh;
+            if (lastRefresh) {
+                const d = new Date(lastRefresh);
+                const br = d.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+                pulseDay.textContent = `Dia atual: ${br}`;
+            } else {
+                pulseDay.textContent = '';
+            }
         }
 
         function renderPulseChart() {
