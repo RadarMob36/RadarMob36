@@ -69,6 +69,7 @@ const SECTION_KEYS = [
   "noticias",
   "mundo_fofocas",
   "x_twitter",
+  "tiktok",
 ];
 
 const SOURCES = [
@@ -166,6 +167,16 @@ const SOURCES = [
     name: "X Trend Topics BR",
     url: "https://news.google.com/rss/search?q=twitter+trending+topics+brasil+site:x.com&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "x_twitter",
+  },
+  {
+    name: "TikTok BR Trends",
+    url: "https://news.google.com/rss/search?q=site:tiktok.com+trending+brasil&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "tiktok",
+  },
+  {
+    name: "TikTok Viral BR",
+    url: "https://news.google.com/rss/search?q=tiktok+viral+brasil&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "tiktok",
   },
   {
     name: "CARAS Brasil",
@@ -285,6 +296,9 @@ function buildFallbackUrl(name, category) {
   if (category === "x_twitter") {
     return `https://x.com/search?q=${q}&src=typed_query`;
   }
+  if (category === "tiktok") {
+    return `https://www.tiktok.com/search?q=${q}`;
+  }
   return `https://trends.google.com/trends/explore?geo=BR&q=${q}`;
 }
 
@@ -296,6 +310,7 @@ function categoryFromText(text, hint) {
   const t = text.toLowerCase();
 
   if (hint === "x_twitter") return "x_twitter";
+  if (hint === "tiktok") return "tiktok";
   if (hint === "mundo_fofocas") return "mundo_fofocas";
 
   if (/(bbb|big brother|pared[aã]o|anjo|prova do l[ií]der)/.test(t)) {
@@ -433,6 +448,7 @@ async function buildTrends() {
     noticias: [],
     mundo_fofocas: [],
     x_twitter: [],
+    tiktok: [],
   };
 
   for (const section of SECTION_KEYS) {
