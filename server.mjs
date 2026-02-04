@@ -298,7 +298,12 @@ const SOURCES = [
 ];
 
 function sendJson(res, status, payload) {
-  res.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
+  res.writeHead(status, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+    Pragma: "no-cache",
+    Expires: "0",
+  });
   res.end(JSON.stringify(payload));
 }
 
@@ -988,7 +993,8 @@ async function refreshData(force = false) {
       state.seenItemKeys = new Set();
     }
 
-    // Acumula score por hora (00-23) para formar o gráfico diário.
+    // Acumula score por hora (00-23) e também snapshot por refresh.
+    const topicScores = {};
     for (const section of SECTION_KEYS) {
       const items = Array.isArray(trends?.[section]) ? trends[section] : [];
       for (const item of items) {
@@ -996,6 +1002,7 @@ async function refreshData(force = false) {
         const topic = normalizeTopicName(rawTopic);
         if (!topic) continue;
         if (!state.topicLabels[topic]) state.topicLabels[topic] = rawTopic;
+        topicScores[topic] = (topicScores[topic] || 0) + itemScore(item);
 
         const hour = Number(String(item.published_time || "").slice(0, 2));
         if (!Number.isInteger(hour) || hour < 0 || hour > 23) continue;
@@ -1010,12 +1017,10 @@ async function refreshData(force = false) {
         state.hourlyTopics[topic][hour] += itemScore(item);
       }
     }
-
-    const scoreMap = buildScoreMap(trends);
     const checkpoint = {
       ts: new Date().toISOString(),
-      total: computeTotalScore(scoreMap),
-      topics: scoreMap,
+      total: computeTotalScore(topicScores),
+      topics: topicScores,
     };
 
     state.trends = trends;
@@ -1035,7 +1040,7 @@ async function refreshData(force = false) {
 }
 
 function buildPulsePayload() {
-  let checkpoints = state.pulse.map((cp) => ({
+  const checkpoints = state.pulse.map((cp) => ({
     ts: cp.ts,
     total: cp.total,
   }));
@@ -1052,13 +1057,19 @@ function buildPulsePayload() {
     };
   }
 
-  const currentHour = currentHourSp();
+  const latestCheckpoint = state.pulse[state.pulse.length - 1];
+  const latest = latestCheckpoint?.topics || {};
+  const totalsFromCheckpoints = {};
+  for (const cp of state.pulse) {
+    for (const [name, value] of Object.entries(cp.topics || {})) {
+      totalsFromCheckpoints[name] = (totalsFromCheckpoints[name] || 0) + (Number(value) || 0);
+    }
+  }
 
-  const latest = state.pulse[state.pulse.length - 1].topics;
-  const sortedTopics = Object.entries(state.hourlyTopics)
-    .map(([name, points]) => ({
+  const sortedTopics = Object.entries(totalsFromCheckpoints)
+    .map(([name, total]) => ({
       name,
-      total: points.reduce((acc, v) => acc + v, 0),
+      total,
     }))
     .sort((a, b) => b.total - a.total)
     .map((x) => x.name);
@@ -1080,32 +1091,23 @@ function buildPulsePayload() {
 
   const topicNames = picked.slice(0, PULSE_TOPICS);
 
-  let series = topicNames.map((name) => ({
+  const series = topicNames.map((name) => ({
     name: state.topicLabels[name] || name,
     key: name,
-    points: Array.from({ length: currentHour + 1 }, (_, hour) => {
-      const arr = state.hourlyTopics[name] || [];
-      const from = Math.max(0, hour - 2);
-      const windowSum = arr.slice(from, hour + 1).reduce((acc, v) => acc + v, 0);
-      return {
-        ts: `${state.lastDateKey || todayIso()}T${String(hour).padStart(2, "0")}:00:00-03:00`,
-        value: windowSum,
-      };
-    }),
-  }));
-
-  checkpoints = Array.from({ length: currentHour + 1 }, (_, hour) => ({
-    ts: `${state.lastDateKey || todayIso()}T${String(hour).padStart(2, "0")}:00:00-03:00`,
-    total: series.reduce((acc, line) => acc + (line.points[hour]?.value || 0), 0),
+    points: state.pulse.map((cp) => ({
+      ts: cp.ts,
+      value: Number(cp.topics?.[name] || 0),
+    })),
   }));
 
   let movers = [];
   movers = topicNames
     .map((name) => {
-      const arr = state.hourlyTopics[name] || [];
-      const current = arr[currentHour] || 0;
-      const prev = currentHour > 0 ? arr[currentHour - 1] || 0 : 0;
-      const total = arr.slice(0, currentHour + 1).reduce((acc, v) => acc + v, 0);
+      const current = Number(latest[name] || 0);
+      const prevCheckpoint =
+        state.pulse.length > 1 ? state.pulse[state.pulse.length - 2].topics || {} : {};
+      const prev = Number(prevCheckpoint[name] || 0);
+      const total = Number(totalsFromCheckpoints[name] || 0);
       return {
         name: state.topicLabels[name] || name,
         delta: current - prev,
@@ -1120,10 +1122,12 @@ function buildPulsePayload() {
 
   if (!movers.length) {
     movers = topicNames.slice(0, 8).map((name) => {
-      const total = (state.hourlyTopics[name] || []).reduce((acc, v) => acc + v, 0);
+      const total = Number(totalsFromCheckpoints[name] || 0);
       return { name: state.topicLabels[name] || name, delta: 0, score: total };
     });
   }
+
+  const currentHour = currentHourSp();
 
   return {
     checkpoints,
@@ -1132,7 +1136,7 @@ function buildPulsePayload() {
     meta: {
       refresh_ms: REFRESH_MS,
       checkpoints: state.pulse.length,
-      last_refresh: checkpoints.at(-1)?.ts || null,
+      last_refresh: latestCheckpoint?.ts || null,
       current_hour: currentHour,
     },
   };
@@ -1140,7 +1144,8 @@ function buildPulsePayload() {
 
 async function handleTrends(_req, res) {
   try {
-    await refreshData(false);
+    // No primeiro acesso, entrega o dado mais fresco possível.
+    await refreshData(true);
     if (!state.trends) {
       throw new Error("Sem dados disponíveis no momento.");
     }
@@ -1178,7 +1183,12 @@ async function serveStatic(res, path) {
 
   try {
     const content = await readFile(filePath);
-    res.writeHead(200, { "Content-Type": contentType });
+    res.writeHead(200, {
+      "Content-Type": contentType,
+      "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+      Pragma: "no-cache",
+      Expires: "0",
+    });
     res.end(content);
   } catch {
     res.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });

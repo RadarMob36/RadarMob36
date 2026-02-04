@@ -768,7 +768,8 @@
             try {
                 // Chamada para backend local (evita expor API key no navegador)
                 const response = await fetch('/api/trends', {
-                    method: 'POST'
+                    method: 'POST',
+                    cache: 'no-store'
                 });
 
                 const data = await response.json();
@@ -812,7 +813,7 @@
         }
 
         async function carregarPulsoGlobal() {
-            const response = await fetch('/api/pulse');
+            const response = await fetch('/api/pulse', { cache: 'no-store' });
             if (!response.ok) {
                 throw new Error(`Pulso indisponível (${response.status})`);
             }
@@ -874,6 +875,15 @@
             const isFlat = max === min;
             const allZero = max === 0 && min === 0;
             const plotted = [];
+            const checkpointLabels = checkpoints.map((cp) => {
+                const d = new Date(cp.ts);
+                return d.toLocaleTimeString('pt-BR', {
+                    timeZone: 'America/Sao_Paulo',
+                    hour12: false,
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            });
 
             ctx.strokeStyle = 'rgba(255,255,255,0.12)';
             ctx.lineWidth = 1;
@@ -922,12 +932,16 @@
             ctx.fillStyle = 'rgba(240,244,248,0.55)';
             ctx.font = '11px "Work Sans", sans-serif';
             ctx.textAlign = 'center';
-            const lastHour = pointsLen - 1;
-            [0, Math.min(6, lastHour), Math.min(12, lastHour), Math.min(18, lastHour), lastHour]
-                .filter((h, i, arr) => arr.indexOf(h) === i)
-                .forEach((hour) => {
-                    const x = left + hour * stepX;
-                    ctx.fillText(String(hour).padStart(2, '0') + ':00', x, height - 8);
+            const tickCount = Math.min(6, Math.max(2, pointsLen));
+            const tickIndexes = Array.from({ length: tickCount }, (_, i) => {
+                if (tickCount === 1) return 0;
+                return Math.round((i * (pointsLen - 1)) / (tickCount - 1));
+            }).filter((idx, i, arr) => arr.indexOf(idx) === i);
+
+            tickIndexes.forEach((idx) => {
+                    const x = left + idx * stepX;
+                    const label = checkpointLabels[idx] || '';
+                    ctx.fillText(label, x, height - 8);
                 });
 
             pulseRenderState = {
@@ -937,6 +951,7 @@
                 bottom,
                 stepX,
                 pointsLen,
+                checkpointLabels,
                 series: plotted
             };
         }
@@ -975,7 +990,7 @@
                     )
                 );
 
-                const hour = String(idx).padStart(2, '0') + ':00';
+                const hour = pulseRenderState.checkpointLabels?.[idx] || '--:--';
                 const rows = pulseRenderState.series
                     .map((s) => {
                         const p = s.pts[idx];
