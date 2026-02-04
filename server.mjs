@@ -455,6 +455,26 @@ function extractShortXTopic(title) {
   return clean.split(" ").slice(0, 4).join(" ");
 }
 
+function isLikelyXTrendTopic(name) {
+  const raw = String(name || "").trim();
+  if (!raw) return false;
+  if (raw.length < 2 || raw.length > 48) return false;
+
+  const t = normalizeTopicName(raw);
+  const blocked =
+    /\b(trends24|getdaytrends|twitter|x twitter|xcom|x com|youtube|gumroad|feedback|login|sign ?up|privacy|terms|cookies|home|about|contact|download|app|ads|help|status)\b/;
+  if (blocked.test(t)) return false;
+  if (/^(trending|trend|topics?)$/i.test(t)) return false;
+
+  const words = t.split(/\s+/).filter(Boolean);
+  if (!words.length) return false;
+  if (words.length === 1 && words[0].length < 3 && !words[0].startsWith("#")) return false;
+
+  const hasUsefulToken =
+    /#/.test(raw) || /\d/.test(raw) || words.some((w) => w.length >= 3);
+  return hasUsefulToken;
+}
+
 function derivePulseTopic(item) {
   const name = String(item?.name || "");
   const desc = String(item?.desc || "");
@@ -657,6 +677,7 @@ function parseXTrendsFromHtml(html, source, today) {
     if (text.length > 64) continue;
     if (!/[#@]|[A-Za-zÀ-ÖØ-öø-ÿ]{3,}/.test(text)) continue;
     if (/^(home|about|login|privacy|terms|contact|more)$/i.test(text)) continue;
+    if (!isLikelyXTrendTopic(text)) continue;
     candidates.push(text);
   }
 
@@ -675,7 +696,7 @@ function parseXTrendsFromHtml(html, source, today) {
       age_hours: 0,
       category: "x_twitter",
     }))
-    .filter((item) => item.name && item.name.length >= 2)
+    .filter((item) => item.name && item.name.length >= 2 && isLikelyXTrendTopic(item.name))
     .filter((item) => {
       const key = normalizeTopicName(item.name);
       if (seen.has(key)) return false;
@@ -741,7 +762,7 @@ function parseXTrendsFromApi(payload, source, today) {
     .map((trend, idx) => {
       const topic = extractShortXTopic(trend?.name || "");
       const key = normalizeTopicName(topic);
-      if (!topic || !key || seen.has(key)) return null;
+      if (!topic || !key || seen.has(key) || !isLikelyXTrendTopic(topic)) return null;
       seen.add(key);
       return {
         name: topic,
@@ -908,7 +929,8 @@ async function buildTrends() {
         if (section === "x_twitter") {
           return (
             /(x api official br|trend24|getdaytrends|x \/ twitter|x trend topics)/.test(source) &&
-            String(item.name || "").length <= 40
+            String(item.name || "").length <= 40 &&
+            isLikelyXTrendTopic(item.name)
           );
         }
         return true;
@@ -1004,6 +1026,7 @@ const state = {
   trends: null,
   pulse: [],
   hourlyTopics: {},
+  minuteTopics: {},
   topicLabels: {},
   seenItemKeys: new Set(),
   lastRefreshTs: 0,
@@ -1026,6 +1049,7 @@ async function refreshData(force = false) {
       // Virou o dia em SP: reinicia o pulso para refletir apenas o dia atual.
       state.pulse = [];
       state.hourlyTopics = {};
+      state.minuteTopics = {};
       state.topicLabels = {};
       state.seenItemKeys = new Set();
     }
@@ -1043,6 +1067,9 @@ async function refreshData(force = false) {
 
         const hour = Number(String(item.published_time || "").slice(0, 2));
         if (!Number.isInteger(hour) || hour < 0 || hour > 23) continue;
+        const minute = Number(String(item.published_time || "").slice(3, 5));
+        if (!Number.isInteger(minute) || minute < 0 || minute > 59) continue;
+        const minuteOfDay = hour * 60 + minute;
 
         const uniqueKey = `${dateKey}|${topic}|${item.source}|${item.published_at}|${item.published_time}|${item.name}`;
         if (state.seenItemKeys.has(uniqueKey)) continue;
@@ -1052,6 +1079,10 @@ async function refreshData(force = false) {
           state.hourlyTopics[topic] = Array.from({ length: 24 }, () => 0);
         }
         state.hourlyTopics[topic][hour] += itemScore(item);
+        if (!state.minuteTopics[topic]) {
+          state.minuteTopics[topic] = Array.from({ length: 1440 }, () => 0);
+        }
+        state.minuteTopics[topic][minuteOfDay] += itemScore(item);
       }
     }
     const checkpoint = {
@@ -1097,10 +1128,8 @@ function buildPulsePayload() {
   const latestCheckpoint = state.pulse[state.pulse.length - 1];
   const latest = latestCheckpoint?.topics || {};
   const totalsFromCheckpoints = {};
-  for (const cp of state.pulse) {
-    for (const [name, value] of Object.entries(cp.topics || {})) {
-      totalsFromCheckpoints[name] = (totalsFromCheckpoints[name] || 0) + (Number(value) || 0);
-    }
+  for (const [name, arr] of Object.entries(state.minuteTopics || {})) {
+    totalsFromCheckpoints[name] = (arr || []).reduce((acc, v) => acc + (Number(v) || 0), 0);
   }
 
   const sortedTopics = Object.entries(totalsFromCheckpoints)
@@ -1142,35 +1171,14 @@ function buildPulsePayload() {
   });
 
   const series = topicNames.map((name) => {
-    const rawByMinute = Array.from({ length: currentMinute + 1 }, () => null);
-    for (const cp of state.pulse) {
-      const d = new Date(cp.ts);
-      const hh = Number(
-        d.toLocaleTimeString("en-GB", {
-          timeZone: "America/Sao_Paulo",
-          hour: "2-digit",
-          hour12: false,
-        }),
-      );
-      const mm = Number(
-        d.toLocaleTimeString("en-GB", {
-          timeZone: "America/Sao_Paulo",
-          minute: "2-digit",
-          hour12: false,
-        }),
-      );
-      const idx = hh * 60 + mm;
-      if (idx >= 0 && idx <= currentMinute) {
-        rawByMinute[idx] = Number(cp.topics?.[name] || 0);
-      }
-    }
-
-    let carry = 0;
-    const points = rawByMinute.map((value, minute) => {
-      if (value !== null) carry = value;
+    const arr = state.minuteTopics[name] || Array.from({ length: 1440 }, () => 0);
+    const points = Array.from({ length: currentMinute + 1 }, (_, minute) => {
+      // Janela móvel para dar dinamismo sem perder histórico do dia.
+      const from = Math.max(0, minute - 29);
+      const windowValue = arr.slice(from, minute + 1).reduce((acc, v) => acc + (Number(v) || 0), 0);
       return {
         ts: checkpoints[minute].ts,
-        value: carry,
+        value: windowValue,
       };
     });
 
@@ -1189,10 +1197,9 @@ function buildPulsePayload() {
   let movers = [];
   movers = topicNames
     .map((name) => {
-      const current = Number(latest[name] || 0);
-      const prevCheckpoint =
-        state.pulse.length > 1 ? state.pulse[state.pulse.length - 2].topics || {} : {};
-      const prev = Number(prevCheckpoint[name] || 0);
+      const arr = state.minuteTopics[name] || [];
+      const current = Number(arr[currentMinute] || 0);
+      const prev = Number(currentMinute > 0 ? arr[currentMinute - 1] || 0 : 0);
       const total = Number(totalsFromCheckpoints[name] || 0);
       return {
         name: state.topicLabels[name] || name,
