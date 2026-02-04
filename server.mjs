@@ -159,6 +159,16 @@ const SOURCES = [
     hint: "mundo_fofocas",
   },
   {
+    name: "People",
+    url: "https://news.google.com/rss/search?q=site:people.com+celebrity&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "mundo_fofocas",
+  },
+  {
+    name: "E! Online",
+    url: "https://news.google.com/rss/search?q=site:eonline.com+celebrity&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "mundo_fofocas",
+  },
+  {
     name: "X / Twitter BR",
     url: "https://news.google.com/rss/search?q=site:x.com+Brasil+tend%C3%AAncia+OR+trending+when:1d&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "x_twitter",
@@ -642,6 +652,16 @@ async function buildTrends() {
   for (const section of SECTION_KEYS) {
     const ranked = grouped
       .filter((item) => item.category === section)
+      .filter((item) => {
+        const source = String(item.source || "").toLowerCase();
+        if (section === "noticias") {
+          return source.includes("google trends");
+        }
+        if (section === "mundo_fofocas") {
+          return /(tmz|deuxmoi|people|e! online|eonline)/.test(source);
+        }
+        return true;
+      })
       .sort((a, b) => {
         if (b.heatScore !== a.heatScore) return b.heatScore - a.heatScore;
         const ta = Date.parse(`${a.published_at}T${a.published_time || "00:00:00"}-03:00`);
@@ -814,22 +834,41 @@ function buildPulsePayload() {
   const currentHour = currentHourSp();
 
   const latest = state.pulse[state.pulse.length - 1].topics;
-  const topicNames = Object.entries(state.hourlyTopics)
+  const sortedTopics = Object.entries(state.hourlyTopics)
     .map(([name, points]) => ({
       name,
       total: points.reduce((acc, v) => acc + v, 0),
     }))
     .sort((a, b) => b.total - a.total)
-    .slice(0, PULSE_TOPICS)
     .map((x) => x.name);
+
+  const picked = [];
+  const hasTopic = (pattern) =>
+    sortedTopics.find((t) => pattern.test(String(state.topicLabels[t] || t).toLowerCase()));
+
+  const bbbKey = hasTopic(/\bbbb\b|big brother/);
+  if (bbbKey) picked.push(bbbKey);
+
+  const sportsKey = hasTopic(/flamengo|palmeiras|corinthians|vasco|santos|gr[eê]mio|internacional|cruzeiro|atl[eé]tico|botafogo|esportes|futebol/);
+  if (sportsKey && !picked.includes(sportsKey)) picked.push(sportsKey);
+
+  for (const t of sortedTopics) {
+    if (!picked.includes(t)) picked.push(t);
+    if (picked.length >= PULSE_TOPICS) break;
+  }
+
+  const topicNames = picked.slice(0, PULSE_TOPICS);
 
   let series = topicNames.map((name) => ({
     name: state.topicLabels[name] || name,
     key: name,
     points: Array.from({ length: currentHour + 1 }, (_, hour) => {
+      const arr = state.hourlyTopics[name] || [];
+      const from = Math.max(0, hour - 2);
+      const windowSum = arr.slice(from, hour + 1).reduce((acc, v) => acc + v, 0);
       return {
         ts: `${state.lastDateKey || todayIso()}T${String(hour).padStart(2, "0")}:00:00-03:00`,
-        value: state.hourlyTopics[name]?.[hour] || 0,
+        value: windowSum,
       };
     }),
   }));
