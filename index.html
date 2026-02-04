@@ -269,6 +269,7 @@
             border: 1px solid rgba(255, 255, 255, 0.1);
             margin-bottom: 14px;
             padding: 10px;
+            position: relative;
         }
 
         .pulse-chart {
@@ -311,6 +312,20 @@
             border-radius: 10px;
             padding: 10px 12px;
             font-size: 0.9rem;
+        }
+
+        .pulse-tooltip {
+            position: absolute;
+            display: none;
+            pointer-events: none;
+            background: rgba(15, 19, 48, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 10px;
+            padding: 8px 10px;
+            font-size: 0.8rem;
+            color: #fff;
+            max-width: 340px;
+            z-index: 20;
         }
 
         .pulse-delta {
@@ -621,6 +636,7 @@
             </div>
             <div class="pulse-chart-wrap">
                 <canvas id="pulseChart" class="pulse-chart"></canvas>
+                <div class="pulse-tooltip" id="pulseTooltip"></div>
             </div>
             <div class="pulse-legend" id="pulseLegend"></div>
             <div class="pulse-movers" id="pulseMovers"></div>
@@ -677,6 +693,7 @@
         }
 
         let pulseData = null;
+        let pulseRenderState = null;
         let isUpdating = false;
         const AUTO_REFRESH_MS = 120000;
         const PULSE_COLORS = ['#00DFD8', '#FF0080', '#FFB800', '#7CFF00', '#7AA2FF'];
@@ -804,6 +821,7 @@
             const stepX = pointsLen > 1 ? (right - left) / (pointsLen - 1) : 0;
             const isFlat = max === min;
             const allZero = max === 0 && min === 0;
+            const plotted = [];
 
             ctx.strokeStyle = 'rgba(255,255,255,0.12)';
             ctx.lineWidth = 1;
@@ -814,14 +832,17 @@
 
             series.forEach((line, idx) => {
                 const lineValues = (line.points || []).map((p) => Number(p.value) || 0);
+                const color = PULSE_COLORS[idx % PULSE_COLORS.length];
+                const pts = [];
                 ctx.beginPath();
                 lineValues.forEach((v, i) => {
                     const x = left + i * stepX;
                     const y = allZero ? bottom : (isFlat ? (top + bottom) / 2 : bottom - ((v - min) / range) * (bottom - top));
                     if (i === 0) ctx.moveTo(x, y);
                     else ctx.lineTo(x, y);
+                    pts.push({ x, y, value: v, hour: i });
                 });
-                ctx.strokeStyle = PULSE_COLORS[idx % PULSE_COLORS.length];
+                ctx.strokeStyle = color;
                 ctx.lineWidth = 2;
                 ctx.stroke();
 
@@ -830,19 +851,33 @@
                     const y = allZero ? bottom : (isFlat ? (top + bottom) / 2 : bottom - ((v - min) / range) * (bottom - top));
                     ctx.beginPath();
                     ctx.arc(x, y, 2.4, 0, Math.PI * 2);
-                    ctx.fillStyle = PULSE_COLORS[idx % PULSE_COLORS.length];
+                    ctx.fillStyle = color;
                     ctx.fill();
                 });
+                plotted.push({ name: line.name, color, pts });
             });
 
             // Marcas de hora no eixo X (dia inteiro).
             ctx.fillStyle = 'rgba(240,244,248,0.55)';
             ctx.font = '11px "Work Sans", sans-serif';
             ctx.textAlign = 'center';
-            [0, 6, 12, 18, 23].forEach((hour) => {
-                const x = left + hour * stepX;
-                ctx.fillText(String(hour).padStart(2, '0') + ':00', x, height - 8);
-            });
+            const lastHour = pointsLen - 1;
+            [0, Math.min(6, lastHour), Math.min(12, lastHour), Math.min(18, lastHour), lastHour]
+                .filter((h, i, arr) => arr.indexOf(h) === i)
+                .forEach((hour) => {
+                    const x = left + hour * stepX;
+                    ctx.fillText(String(hour).padStart(2, '0') + ':00', x, height - 8);
+                });
+
+            pulseRenderState = {
+                left,
+                right,
+                top,
+                bottom,
+                stepX,
+                pointsLen,
+                series: plotted
+            };
         }
 
         function renderPulseLegend() {
@@ -859,6 +894,46 @@
                     ${line.name}
                 </span>
             `).join('');
+        }
+
+        function bindPulseTooltip() {
+            const canvas = document.getElementById('pulseChart');
+            const tooltip = document.getElementById('pulseTooltip');
+            const wrap = canvas.parentElement;
+
+            canvas.addEventListener('mousemove', (ev) => {
+                if (!pulseRenderState) return;
+                const rect = canvas.getBoundingClientRect();
+                const x = ev.clientX - rect.left;
+
+                const idx = Math.max(
+                    0,
+                    Math.min(
+                        pulseRenderState.pointsLen - 1,
+                        Math.round((x - pulseRenderState.left) / Math.max(1, pulseRenderState.stepX))
+                    )
+                );
+
+                const hour = String(idx).padStart(2, '0') + ':00';
+                const rows = pulseRenderState.series
+                    .map((s) => {
+                        const p = s.pts[idx];
+                        return `<div><span style="color:${s.color}">●</span> ${s.name}: <b>${p ? p.value : 0}</b></div>`;
+                    })
+                    .join('');
+
+                tooltip.innerHTML = `<div><b>${hour}</b></div>${rows}`;
+                tooltip.style.display = 'block';
+
+                const tx = Math.min(wrap.clientWidth - 250, Math.max(8, x + 12));
+                const ty = Math.max(8, ev.clientY - rect.top - 12);
+                tooltip.style.left = `${tx}px`;
+                tooltip.style.top = `${ty}px`;
+            });
+
+            canvas.addEventListener('mouseleave', () => {
+                tooltip.style.display = 'none';
+            });
         }
 
         function renderPulseMovers() {
@@ -991,6 +1066,7 @@
                 atualizarTrends(true);
             }, AUTO_REFRESH_MS);
             window.addEventListener('resize', renderPulseChart);
+            bindPulseTooltip();
         });
     </script>
 </body>

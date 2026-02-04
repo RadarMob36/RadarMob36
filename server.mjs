@@ -179,6 +179,31 @@ const SOURCES = [
     hint: "tiktok",
   },
   {
+    name: "TikTok Challenge BR",
+    url: "https://news.google.com/rss/search?q=tiktok+challenge+brasil&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "tiktok",
+  },
+  {
+    name: "TikTok Música BR",
+    url: "https://news.google.com/rss/search?q=tiktok+musica+trend+brasil&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "tiktok",
+  },
+  {
+    name: "TikTok Influencers BR",
+    url: "https://news.google.com/rss/search?q=tiktok+influenciador+brasil&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "tiktok",
+  },
+  {
+    name: "TikTok Hashtags BR",
+    url: "https://news.google.com/rss/search?q=tiktok+hashtags+brasil&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "tiktok",
+  },
+  {
+    name: "TikTok ForYou BR",
+    url: "https://news.google.com/rss/search?q=tiktok+foryou+brasil&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "tiktok",
+  },
+  {
     name: "CARAS Brasil",
     url: "https://news.google.com/rss/search?q=site:caras.com.br+famosos&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "celebridades",
@@ -274,6 +299,16 @@ function todayIso() {
   });
 }
 
+function currentHourSp() {
+  return Number(
+    new Date().toLocaleTimeString("en-GB", {
+      timeZone: "America/Sao_Paulo",
+      hour: "2-digit",
+      hour12: false,
+    }),
+  );
+}
+
 function normalizeTitle(title, sourceName) {
   let t = cleanText(title);
   const parts = t.split(" - ");
@@ -312,6 +347,10 @@ function categoryFromText(text, hint) {
   if (hint === "x_twitter") return "x_twitter";
   if (hint === "tiktok") return "tiktok";
   if (hint === "mundo_fofocas") return "mundo_fofocas";
+
+  if (/(tiktok|for you|foryou|viralizou|trend do tiktok|challenge|dancinha|áudio viral|audio viral|#fyp)/.test(t)) {
+    return "tiktok";
+  }
 
   if (/(bbb|big brother|pared[aã]o|anjo|prova do l[ií]der)/.test(t)) {
     return "bbb";
@@ -611,6 +650,8 @@ function buildPulsePayload() {
     };
   }
 
+  const currentHour = currentHourSp();
+
   const latest = state.pulse[state.pulse.length - 1].topics;
   const topicNames = Object.entries(state.hourlyTopics)
     .map(([name, points]) => ({
@@ -623,13 +664,18 @@ function buildPulsePayload() {
 
   let series = topicNames.map((name) => ({
     name,
-    points: Array.from({ length: 24 }, (_, hour) => ({
-      ts: `${state.lastDateKey || todayIso()}T${String(hour).padStart(2, "0")}:00:00-03:00`,
-      value: state.hourlyTopics[name]?.[hour] || 0,
-    })),
+    points: Array.from({ length: currentHour + 1 }, (_, hour) => {
+      const cumulative = (state.hourlyTopics[name] || [])
+        .slice(0, hour + 1)
+        .reduce((acc, v) => acc + v, 0);
+      return {
+        ts: `${state.lastDateKey || todayIso()}T${String(hour).padStart(2, "0")}:00:00-03:00`,
+        value: cumulative,
+      };
+    }),
   }));
 
-  checkpoints = Array.from({ length: 24 }, (_, hour) => ({
+  checkpoints = Array.from({ length: currentHour + 1 }, (_, hour) => ({
     ts: `${state.lastDateKey || todayIso()}T${String(hour).padStart(2, "0")}:00:00-03:00`,
     total: series.reduce((acc, line) => acc + (line.points[hour]?.value || 0), 0),
   }));
@@ -667,6 +713,7 @@ function buildPulsePayload() {
       refresh_ms: REFRESH_MS,
       checkpoints: state.pulse.length,
       last_refresh: checkpoints.at(-1)?.ts || null,
+      current_hour: currentHour,
     },
   };
 }
