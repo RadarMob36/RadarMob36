@@ -341,6 +341,39 @@ function normalizeTopicName(name) {
   return String(name || "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+function derivePulseTopic(item) {
+  const name = String(item?.name || "");
+  const desc = String(item?.desc || "");
+  const text = `${name} ${desc}`.toLowerCase();
+
+  if (/\bbbb\b|big brother|pared[aã]o|anjo|prova do l[ií]der/.test(text))
+    return "BBB";
+
+  const hashtag = name.match(/#([A-Za-z0-9_]+)/);
+  if (hashtag?.[1]) return `#${hashtag[1].toUpperCase()}`;
+
+  const sports = [
+    "flamengo",
+    "palmeiras",
+    "corinthians",
+    "são paulo",
+    "santos",
+    "vasco",
+    "grêmio",
+    "internacional",
+    "cruzeiro",
+    "atlético mineiro",
+    "botafogo",
+  ];
+  for (const team of sports) {
+    if (text.includes(team)) return team.replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  const head = name.split(/[-|:]/)[0].trim();
+  const short = head.split(/\s+/).slice(0, 3).join(" ");
+  return short || "Assunto";
+}
+
 function categoryFromText(text, hint) {
   const t = text.toLowerCase();
 
@@ -633,6 +666,7 @@ const state = {
   trends: null,
   pulse: [],
   hourlyTopics: {},
+  topicLabels: {},
   seenItemKeys: new Set(),
   lastRefreshTs: 0,
   lastDateKey: null,
@@ -654,6 +688,7 @@ async function refreshData(force = false) {
       // Virou o dia em SP: reinicia o pulso para refletir apenas o dia atual.
       state.pulse = [];
       state.hourlyTopics = {};
+      state.topicLabels = {};
       state.seenItemKeys = new Set();
     }
 
@@ -661,8 +696,10 @@ async function refreshData(force = false) {
     for (const section of SECTION_KEYS) {
       const items = Array.isArray(trends?.[section]) ? trends[section] : [];
       for (const item of items) {
-        const topic = normalizeTopicName(item.name);
+        const rawTopic = derivePulseTopic(item);
+        const topic = normalizeTopicName(rawTopic);
         if (!topic) continue;
+        if (!state.topicLabels[topic]) state.topicLabels[topic] = rawTopic;
 
         const hour = Number(String(item.published_time || "").slice(0, 2));
         if (!Number.isInteger(hour) || hour < 0 || hour > 23) continue;
@@ -732,14 +769,12 @@ function buildPulsePayload() {
     .map((x) => x.name);
 
   let series = topicNames.map((name) => ({
-    name,
+    name: state.topicLabels[name] || name,
+    key: name,
     points: Array.from({ length: currentHour + 1 }, (_, hour) => {
-      const cumulative = (state.hourlyTopics[name] || [])
-        .slice(0, hour + 1)
-        .reduce((acc, v) => acc + v, 0);
       return {
         ts: `${state.lastDateKey || todayIso()}T${String(hour).padStart(2, "0")}:00:00-03:00`,
-        value: cumulative,
+        value: state.hourlyTopics[name]?.[hour] || 0,
       };
     }),
   }));
@@ -750,28 +785,29 @@ function buildPulsePayload() {
   }));
 
   let movers = [];
-  if (state.pulse.length >= 2) {
-    const prev = state.pulse[state.pulse.length - 2].topics;
-    movers = Object.entries(latest)
-      .map(([name, value]) => ({
-        name,
-        delta: value - (prev[name] || 0),
-        score: value,
-      }))
-      .filter((m) => m.delta > 0)
-      .sort((a, b) => b.delta - a.delta)
-      .slice(0, 8);
-  }
+  movers = topicNames
+    .map((name) => {
+      const arr = state.hourlyTopics[name] || [];
+      const current = arr[currentHour] || 0;
+      const prev = currentHour > 0 ? arr[currentHour - 1] || 0 : 0;
+      const total = arr.slice(0, currentHour + 1).reduce((acc, v) => acc + v, 0);
+      return {
+        name: state.topicLabels[name] || name,
+        delta: current - prev,
+        score: total,
+      };
+    })
+    .sort((a, b) => {
+      if (b.delta !== a.delta) return b.delta - a.delta;
+      return b.score - a.score;
+    })
+    .slice(0, 8);
 
   if (!movers.length) {
-    movers = Object.entries(latest)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 8)
-      .map(([name, value]) => ({
-        name,
-        delta: 0,
-        score: value,
-      }));
+    movers = topicNames.slice(0, 8).map((name) => {
+      const total = (state.hourlyTopics[name] || []).reduce((acc, v) => acc + v, 0);
+      return { name: state.topicLabels[name] || name, delta: 0, score: total };
+    });
   }
 
   return {
