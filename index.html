@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trends Brasil • Live Monitor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;800&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --primary: #FF0080;
+            --secondary: #7928CA;
+            --accent: #00DFD8;
+            --dark: #0A0E27;
+            --light: #F0F4F8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Work Sans', sans-serif;
+            background: var(--dark);
+            color: var(--light);
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background:
+                radial-gradient(circle at 20% 50%, rgba(255, 0, 128, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(121, 40, 202, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 40% 20%, rgba(0, 223, 216, 0.05) 0%, transparent 50%);
+            z-index: 0;
+            animation: pulse 15s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 0.3;
+            }
+
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            animation: slideDown 0.8s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header h1 {
+            font-family: 'Bebas Neue', cursive;
+            font-size: clamp(3rem, 8vw, 7rem);
+            background: linear-gradient(135deg, var(--primary), var(--secondary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 0.05em;
+            margin-bottom: 10px;
+            line-height: 1;
+        }
+
+        .header p {
+            font-size: 1.2rem;
+            color: rgba(240, 244, 248, 0.6);
+            font-weight: 400;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin: 30px 0;
+            flex-wrap: wrap;
+        }
+
+        .date-badge {
+            background: rgba(255, 0, 128, 0.2);
+            border: 1px solid var(--primary);
+            padding: 12px 25px;
+            border-radius: 30px;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(255, 0, 0, 0.2);
+            padding: 10px 20px;
+            border-radius: 25px;
+            border: 1px solid rgba(255, 0, 0, 0.5);
+        }
+
+        .live-dot {
+            width: 10px;
+            height: 10px;
+            background: #ff0000;
+            border-radius: 50%;
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        .reload-btn {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border: none;
+            padding: 15px 40px;
+            border-radius: 50px;
+            color: white;
+            font-weight: 800;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-family: 'Work Sans', sans-serif;
+            box-shadow: 0 10px 30px rgba(255, 0, 128, 0.3);
+        }
+
+        .reload-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 40px rgba(255, 0, 128, 0.5);
+        }
+
+        .reload-btn:active {
+            transform: scale(0.98);
+        }
+
+        .reload-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status {
+            text-align: center;
+            margin: 20px 0;
+            font-size: 1rem;
+            min-height: 30px;
+        }
+
+        .status.loading {
+            color: var(--accent);
+            animation: pulse 1.5s infinite;
+        }
+
+        .status.success {
+            color: #00FF88;
+        }
+
+        .status.error {
+            color: var(--primary);
+        }
+
+        .pulse-panel {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 24px;
+            margin-top: 20px;
+        }
+
+        .pulse-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+
+        .pulse-title {
+            font-family: 'Bebas Neue', cursive;
+            letter-spacing: 0.05em;
+            font-size: 1.8rem;
+            background: linear-gradient(135deg, var(--accent), var(--primary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .pulse-sub {
+            color: rgba(240, 244, 248, 0.7);
+            font-size: 0.85rem;
+        }
+
+        .pulse-chart-wrap {
+            height: 180px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 14px;
+            padding: 10px;
+        }
+
+        .pulse-chart {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        .pulse-movers {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 10px;
+        }
+
+        .pulse-item {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 10px 12px;
+            font-size: 0.9rem;
+        }
+
+        .pulse-delta {
+            color: var(--accent);
+            font-weight: 800;
+            margin-right: 6px;
+        }
+
+        .trends-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+
+        .trend-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            animation: slideUp 0.6s ease-out both;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .trend-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary), var(--accent));
+            transform: scaleX(0);
+            transition: transform 0.4s;
+        }
+
+        .trend-card:hover {
+            transform: translateY(-10px);
+            border-color: var(--primary);
+            box-shadow: 0 20px 60px rgba(255, 0, 128, 0.2);
+        }
+
+        .trend-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .trend-card:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .trend-card:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .trend-card:nth-child(3) {
+            animation-delay: 0.3s;
+        }
+
+        .trend-card:nth-child(4) {
+            animation-delay: 0.4s;
+        }
+
+        .trend-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .trend-icon {
+            font-size: 2.5rem;
+            filter: drop-shadow(0 0 20px currentColor);
+        }
+
+        .trend-title {
+            font-family: 'Bebas Neue', cursive;
+            font-size: 1.8rem;
+            letter-spacing: 0.05em;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .trend-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px 20px;
+            margin: 12px 0;
+            border-radius: 12px;
+            border-left: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .trend-item:hover {
+            background: rgba(255, 0, 128, 0.1);
+            border-left-color: var(--primary);
+            transform: translateX(10px);
+        }
+
+        .trend-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--light);
+            margin-bottom: 5px;
+        }
+
+        .trend-link {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .trend-link:hover {
+            text-decoration: underline;
+        }
+
+        .trend-desc {
+            font-size: 0.9rem;
+            color: rgba(240, 244, 248, 0.6);
+            margin-bottom: 5px;
+        }
+
+        .trend-source {
+            font-size: 0.75rem;
+            color: rgba(0, 223, 216, 0.8);
+            font-weight: 600;
+        }
+
+        .trend-actions {
+            margin-top: 8px;
+        }
+
+        .trend-open {
+            display: inline-block;
+            font-size: 0.75rem;
+            color: var(--accent);
+            text-decoration: none;
+            border: 1px solid rgba(0, 223, 216, 0.4);
+            border-radius: 999px;
+            padding: 4px 10px;
+        }
+
+        .trend-open:hover {
+            background: rgba(0, 223, 216, 0.12);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-left: 10px;
+        }
+
+        .badge-hot {
+            background: linear-gradient(135deg, #FF0080, #FF4D00);
+            color: white;
+        }
+
+        .badge-rising {
+            background: linear-gradient(135deg, #FFB800, #FFA000);
+            color: white;
+        }
+
+        .badge-new {
+            background: linear-gradient(135deg, #00DFD8, #007CF0);
+            color: white;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(10, 14, 39, 0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(255, 255, 255, 0.1);
+            border-top: 5px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-text {
+            color: var(--light);
+            font-size: 1.3rem;
+            text-align: center;
+        }
+
+        .footer {
+            text-align: center;
+            margin-top: 80px;
+            padding: 30px 20px;
+            color: rgba(240, 244, 248, 0.4);
+            font-size: 0.85rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .footer h4 {
+            color: rgba(240, 244, 248, 0.6);
+            margin-bottom: 15px;
+            font-size: 1rem;
+        }
+
+        .sources-list {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .source-tag-small {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        @media (max-width: 768px) {
+            .trends-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="spinner"></div>
+        <div class="loading-text">
+            🔍 Buscando trends atuais da web...<br>
+            <span style="font-size: 0.9rem; opacity: 0.7;">Isso pode levar alguns segundos</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>TRENDS BRASIL</h1>
+            <p>Monitor Automático em Tempo Real</p>
+        </div>
+
+        <div class="controls">
+            <div class="date-badge" id="dateDisplay">
+                📅 Carregando...
+            </div>
+            <div class="live-indicator">
+                <span class="live-dot"></span>
+                <span>AO VIVO</span>
+            </div>
+            <button class="reload-btn" onclick="atualizarTrends()" id="reloadBtn">
+                🔄 ATUALIZAR AGORA
+            </button>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div class="pulse-panel">
+            <div class="pulse-header">
+                <h3 class="pulse-title">Pulso Instantâneo</h3>
+                <span class="pulse-sub" id="pulseMeta">Aguardando dados...</span>
+            </div>
+            <div class="pulse-chart-wrap">
+                <canvas id="pulseChart" class="pulse-chart"></canvas>
+            </div>
+            <div class="pulse-movers" id="pulseMovers"></div>
+        </div>
+
+        <div class="trends-grid" id="trendsGrid"></div>
+
+        <div class="footer">
+            <h4>📡 Fontes Agregadas</h4>
+            <div class="sources-list">
+                <span class="source-tag-small">Leo Dias</span>
+                <span class="source-tag-small">UOL Splash</span>
+                <span class="source-tag-small">Purepeople</span>
+                <span class="source-tag-small">Extra Globo</span>
+                <span class="source-tag-small">Contigo!</span>
+                <span class="source-tag-small">OFuxico</span>
+                <span class="source-tag-small">Quem</span>
+                <span class="source-tag-small">Gente (Terra)</span>
+                <span class="source-tag-small">TMZ</span>
+                <span class="source-tag-small">Deuxmoi</span>
+                <span class="source-tag-small">X / Twitter</span>
+                <span class="source-tag-small">Google Trends BR</span>
+                <span class="source-tag-small">CNN Brasil</span>
+                <span class="source-tag-small">G1</span>
+                <span class="source-tag-small">O Tempo</span>
+            </div>
+            <p style="margin-top: 20px;">
+                ✅ Sistema automático com busca em tempo real<br>
+                Última atualização: <span id="lastUpdate">-</span>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Atualizar data dinamicamente
+        function atualizarData() {
+            const agora = new Date();
+            const diasSemana = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+            const meses = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+
+            const texto = `📅 ${diasSemana[agora.getDay()]}, ${agora.getDate()} de ${meses[agora.getMonth()]} de ${agora.getFullYear()}`;
+            document.getElementById('dateDisplay').textContent = texto;
+        }
+
+        const trendHistory = [];
+        let isUpdating = false;
+        const AUTO_REFRESH_MS = 120000;
+
+        async function atualizarTrends(silent = false) {
+            if (isUpdating) return;
+            isUpdating = true;
+            const overlay = document.getElementById('loadingOverlay');
+            const status = document.getElementById('status');
+            const grid = document.getElementById('trendsGrid');
+            const btn = document.getElementById('reloadBtn');
+
+            // UI Loading
+            if (!silent) {
+                overlay.classList.add('active');
+                btn.disabled = true;
+                status.className = 'status loading';
+                status.textContent = '🔍 Buscando dados atuais...';
+                grid.innerHTML = '';
+            }
+
+            try {
+                // Chamada para backend local (evita expor API key no navegador)
+                const response = await fetch('/api/trends', {
+                    method: 'POST'
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    const backendError = data?.error || 'Erro na API';
+                    throw new Error(`${backendError} - Código: ${response.status}`);
+                }
+
+                const trends = data;
+
+                // Renderizar
+                renderTrends(trends);
+                atualizarPulso(trends);
+
+                status.className = 'status success';
+                status.textContent = silent ? '⚡ Atualização automática concluída' : '✅ Trends atualizadas com sucesso!';
+
+                // Atualizar timestamp
+                const agora = new Date();
+                document.getElementById('lastUpdate').textContent = agora.toLocaleString('pt-BR');
+
+            } catch (error) {
+                console.error('Erro:', error);
+                status.className = 'status error';
+                status.textContent = '❌ ' + error.message;
+
+                mostrarMensagemAjuda();
+            } finally {
+                if (!silent) {
+                    overlay.classList.remove('active');
+                    btn.disabled = false;
+                }
+                isUpdating = false;
+            }
+        }
+
+        function getBadgeWeight(badge) {
+            if (badge === 'hot') return 3;
+            if (badge === 'rising') return 2;
+            return 1;
+        }
+
+        function normalizeName(text) {
+            return String(text || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        }
+
+        function atualizarPulso(trends) {
+            const now = new Date();
+            const scoreMap = {};
+            let totalScore = 0;
+
+            Object.keys(trends).forEach((key) => {
+                if (!Array.isArray(trends[key])) return;
+                trends[key].forEach((item) => {
+                    const name = normalizeName(item.name);
+                    if (!name) return;
+                    const score = getBadgeWeight(item.badge);
+                    scoreMap[name] = (scoreMap[name] || 0) + score;
+                    totalScore += score;
+                });
+            });
+
+            trendHistory.push({
+                ts: now.getTime(),
+                totalScore,
+                scoreMap
+            });
+
+            while (trendHistory.length > 20) {
+                trendHistory.shift();
+            }
+
+            renderPulseChart();
+            renderPulseMovers();
+            const pulseMeta = document.getElementById('pulseMeta');
+            pulseMeta.textContent = `Últimos ${trendHistory.length} checkpoints • auto refresh 2 min`;
+        }
+
+        function renderPulseChart() {
+            const canvas = document.getElementById('pulseChart');
+            const parent = canvas.parentElement;
+            const width = parent.clientWidth;
+            const height = parent.clientHeight;
+            const dpr = window.devicePixelRatio || 1;
+
+            canvas.width = Math.floor(width * dpr);
+            canvas.height = Math.floor(height * dpr);
+            canvas.style.width = `${width}px`;
+            canvas.style.height = `${height}px`;
+
+            const ctx = canvas.getContext('2d');
+            ctx.scale(dpr, dpr);
+            ctx.clearRect(0, 0, width, height);
+
+            const values = trendHistory.map((x) => x.totalScore);
+            if (!values.length) return;
+
+            const min = Math.min(...values);
+            const max = Math.max(...values);
+            const range = Math.max(1, max - min);
+            const left = 12;
+            const right = width - 12;
+            const top = 12;
+            const bottom = height - 12;
+            const stepX = values.length > 1 ? (right - left) / (values.length - 1) : 0;
+            const isFlat = max === min;
+
+            ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(left, bottom);
+            ctx.lineTo(right, bottom);
+            ctx.stroke();
+
+            ctx.beginPath();
+            values.forEach((v, i) => {
+                const x = left + i * stepX;
+                const y = isFlat ? (top + bottom) / 2 : bottom - ((v - min) / range) * (bottom - top);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.strokeStyle = '#00DFD8';
+            ctx.lineWidth = 2.5;
+            ctx.stroke();
+
+            values.forEach((v, i) => {
+                const x = left + i * stepX;
+                const y = isFlat ? (top + bottom) / 2 : bottom - ((v - min) / range) * (bottom - top);
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI * 2);
+                ctx.fillStyle = '#FF0080';
+                ctx.fill();
+            });
+        }
+
+        function renderPulseMovers() {
+            const box = document.getElementById('pulseMovers');
+            if (trendHistory.length < 2) {
+                box.innerHTML = '<div class="pulse-item">Coletando variação... faça mais atualizações.</div>';
+                return;
+            }
+
+            const prev = trendHistory[trendHistory.length - 2].scoreMap;
+            const curr = trendHistory[trendHistory.length - 1].scoreMap;
+            const deltas = Object.keys(curr).map((name) => ({
+                name,
+                delta: (curr[name] || 0) - (prev[name] || 0)
+            }))
+                .filter((x) => x.delta > 0)
+                .sort((a, b) => b.delta - a.delta)
+                .slice(0, 6);
+
+            if (!deltas.length) {
+                const topNow = Object.entries(curr)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, 6);
+
+                box.innerHTML = topNow.length
+                    ? topNow.map(([name, score]) => `<div class="pulse-item"><span class="pulse-delta">${score}pts</span>${name}</div>`).join('')
+                    : '<div class="pulse-item">Sem alta forte no último ciclo.</div>';
+                return;
+            }
+
+            box.innerHTML = deltas.map((item) => `
+                <div class="pulse-item">
+                    <span class="pulse-delta">+${item.delta}</span>${item.name}
+                </div>
+            `).join('');
+        }
+
+        function renderTrends(trends) {
+            const grid = document.getElementById('trendsGrid');
+            grid.innerHTML = '';
+
+            const sections = [
+                { key: 'bbb', icon: '📺', title: 'BBB 26' },
+                { key: 'fofocas', icon: '💬', title: 'Fofocas BR' },
+                { key: 'celebridades', icon: '⭐', title: 'Celebridades' },
+                { key: 'esportes', icon: '⚽', title: 'Esportes' },
+                { key: 'noticias', icon: '📰', title: 'Notícias / Google Trends' },
+                { key: 'mundo_fofocas', icon: '🌍', title: 'Mundo (Fofocas)' },
+                { key: 'x_twitter', icon: '𝕏', title: 'X / Twitter' }
+            ];
+
+            sections.forEach(section => {
+                if (trends[section.key] && trends[section.key].length > 0) {
+                    const card = createCard(section.icon, section.title, trends[section.key]);
+                    grid.appendChild(card);
+                }
+            });
+
+            if (!grid.children.length) {
+                grid.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
+                        <h2 style="color: var(--accent); margin-bottom: 20px;">Nenhuma trend validada hoje</h2>
+                        <p style="font-size: 1.1rem; opacity: 0.85;">
+                            Os itens antigos foram filtrados automaticamente. Tente atualizar novamente em alguns minutos.
+                        </p>
+                    </div>
+                `;
+            }
+        }
+
+        function createCard(icon, title, items) {
+            const card = document.createElement('div');
+            card.className = 'trend-card';
+
+            let itemsHtml = items.map(item => `
+                <div class="trend-item">
+                    <div class="trend-name">
+                        <a class="trend-link" href="${item.url || '#'}" target="_blank" rel="noopener noreferrer">${item.name}</a>
+                        <span class="badge badge-${item.badge}">${item.badge}</span>
+                    </div>
+                    <div class="trend-desc">${item.desc || ''}</div>
+                    <div class="trend-source">📡 ${item.source || 'Web'}${item.published_at ? ' • ' + item.published_at : ''}</div>
+                    <div class="trend-actions">
+                        <a class="trend-open" href="${item.url || '#'}" target="_blank" rel="noopener noreferrer">Abrir assunto</a>
+                    </div>
+                </div>
+            `).join('');
+
+            card.innerHTML = `
+                <div class="trend-header">
+                    <span class="trend-icon">${icon}</span>
+                    <h3 class="trend-title">${title}</h3>
+                </div>
+                ${itemsHtml}
+            `;
+
+            return card;
+        }
+
+        function mostrarMensagemAjuda() {
+            const grid = document.getElementById('trendsGrid');
+            grid.innerHTML = `
+                <div style="grid-column: 1 / -1; text-align: center; padding: 60px 20px;">
+                    <h2 style="color: var(--primary); margin-bottom: 20px;">⚠️ Backend Não Configurado</h2>
+                    <p style="font-size: 1.1rem; margin-bottom: 30px;">
+                        Para buscar trends em tempo real, rode este HTML com o servidor em Node.js.
+                    </p>
+                    <div style="background: rgba(255,255,255,0.05); padding: 30px; border-radius: 20px; max-width: 600px; margin: 0 auto;">
+                        <h3 style="margin-bottom: 15px;">Como configurar:</h3>
+                        <ol style="text-align: left; line-height: 2;">
+                            <li>No terminal, entre na pasta do projeto</li>
+                            <li>Rode: <code style="background: rgba(0,0,0,0.3); padding: 5px 10px; border-radius: 5px;">npm start</code></li>
+                            <li>Abra: <code style="background: rgba(0,0,0,0.3); padding: 5px 10px; border-radius: 5px;">http://localhost:3000</code></li>
+                        </ol>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Inicializar
+        window.addEventListener('load', () => {
+            atualizarData();
+            // Tentar carregar automaticamente
+            setTimeout(() => {
+                atualizarTrends();
+            }, 500);
+            setInterval(() => {
+                atualizarTrends(true);
+            }, AUTO_REFRESH_MS);
+            window.addEventListener('resize', renderPulseChart);
+        });
+    </script>
+</body>
+
+</html>
