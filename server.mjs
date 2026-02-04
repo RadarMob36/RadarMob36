@@ -134,6 +134,21 @@ const SOURCES = [
     hint: "esportes",
   },
   {
+    name: "ge.globo",
+    url: "https://news.google.com/rss/search?q=site:ge.globo.com+futebol&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "esportes",
+  },
+  {
+    name: "Lance",
+    url: "https://news.google.com/rss/search?q=site:lance.com.br+futebol&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "esportes",
+  },
+  {
+    name: "ESPN Brasil",
+    url: "https://news.google.com/rss/search?q=site:espn.com.br+futebol&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "esportes",
+  },
+  {
     name: "TMZ",
     url: "https://news.google.com/rss/search?q=site:tmz.com+celebrity&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "mundo_fofocas",
@@ -145,22 +160,22 @@ const SOURCES = [
   },
   {
     name: "X / Twitter BR",
-    url: "https://news.google.com/rss/search?q=site:x.com+Brasil+tend%C3%AAncia+OR+trending&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    url: "https://news.google.com/rss/search?q=site:x.com+Brasil+tend%C3%AAncia+OR+trending+when:1d&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "x_twitter",
   },
   {
     name: "X / Twitter BBB",
-    url: "https://news.google.com/rss/search?q=site:x.com+BBB&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    url: "https://news.google.com/rss/search?q=site:x.com+BBB+when:1d&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "x_twitter",
   },
   {
     name: "X / Twitter Esportes",
-    url: "https://news.google.com/rss/search?q=site:x.com+futebol+OR+esportes+Brasil&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    url: "https://news.google.com/rss/search?q=site:x.com+futebol+OR+esportes+Brasil+when:1d&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "x_twitter",
   },
   {
     name: "X / Twitter Famosos",
-    url: "https://news.google.com/rss/search?q=site:x.com+famosos+OR+celebridades&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    url: "https://news.google.com/rss/search?q=site:x.com+famosos+OR+celebridades+when:1d&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "x_twitter",
   },
   {
@@ -170,37 +185,37 @@ const SOURCES = [
   },
   {
     name: "TikTok BR Trends",
-    url: "https://news.google.com/rss/search?q=site:tiktok.com+trending+brasil&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    url: "https://news.google.com/rss/search?q=site:tiktok.com+trending+brasil+when:1d&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "tiktok",
   },
   {
     name: "TikTok Viral BR",
-    url: "https://news.google.com/rss/search?q=tiktok+viral+brasil&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    url: "https://news.google.com/rss/search?q=tiktok+viral+brasil+when:1d&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "tiktok",
   },
   {
     name: "TikTok Challenge BR",
-    url: "https://news.google.com/rss/search?q=tiktok+challenge+brasil&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    url: "https://news.google.com/rss/search?q=tiktok+challenge+brasil+when:1d&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "tiktok",
   },
   {
     name: "TikTok Música BR",
-    url: "https://news.google.com/rss/search?q=tiktok+musica+trend+brasil&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    url: "https://news.google.com/rss/search?q=tiktok+musica+trend+brasil+when:1d&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "tiktok",
   },
   {
     name: "TikTok Influencers BR",
-    url: "https://news.google.com/rss/search?q=tiktok+influenciador+brasil&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    url: "https://news.google.com/rss/search?q=tiktok+influenciador+brasil+when:1d&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "tiktok",
   },
   {
     name: "TikTok Hashtags BR",
-    url: "https://news.google.com/rss/search?q=tiktok+hashtags+brasil&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    url: "https://news.google.com/rss/search?q=tiktok+hashtags+brasil+when:1d&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "tiktok",
   },
   {
     name: "TikTok ForYou BR",
-    url: "https://news.google.com/rss/search?q=tiktok+foryou+brasil&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    url: "https://news.google.com/rss/search?q=tiktok+foryou+brasil+when:1d&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "tiktok",
   },
   {
@@ -290,6 +305,7 @@ function parsePubDate(value) {
       minute: "2-digit",
       second: "2-digit",
     }),
+    ts: d.getTime(),
   };
 }
 
@@ -429,9 +445,10 @@ function parseRssItems(xml, source, today) {
         extractTag(block, "published") ||
         extractTag(block, "updated");
       const pubDate = parsePubDate(pubDateRaw);
-      if (!pubDate) return null;
-      const publishedAt = pubDate.date;
-      const publishedTime = pubDate.time;
+      const nowTs = Date.now();
+      const publishedAt = pubDate?.date || today;
+      const publishedTime = pubDate?.time || "00:00:00";
+      const publishedTs = pubDate?.ts || nowTs;
       const sourceName = sourceTag || source.name;
       const title = normalizeTitle(rawTitle, sourceName);
 
@@ -447,11 +464,13 @@ function parseRssItems(xml, source, today) {
         url: cleanText(newsItemUrl || link),
         published_at: publishedAt,
         published_time: publishedTime,
+        published_ts: publishedTs,
+        is_today: publishedAt === today,
+        age_hours: Math.max(0, (nowTs - publishedTs) / 3600000),
         category: categoryFromText(allText, source.hint),
       };
     })
-    .filter(Boolean)
-    .filter((item) => item.published_at === today);
+    .filter(Boolean);
 }
 
 async function fetchText(url) {
@@ -554,13 +573,8 @@ async function buildTrends() {
     const maxItemScore = Math.max(...group.items.map(itemScore));
     const heatScore = sourceCount * 5 + mentionCount * 2 + maxItemScore;
 
-    let badge = "new";
-    if (heatScore >= 12) badge = "hot";
-    else if (heatScore >= 7) badge = "rising";
-
     return {
       name: group.name,
-      badge,
       desc: latest?.desc || "",
       source:
         sourceCount > 1
@@ -572,6 +586,8 @@ async function buildTrends() {
       heatScore,
       mentionCount,
       sourceCount,
+      is_today: Boolean(latest?.is_today),
+      age_hours: Number(latest?.age_hours ?? 999),
       url:
         !latest?.url || latest.url.includes("/trending/rss")
           ? buildFallbackUrl(group.name, category)
@@ -591,7 +607,7 @@ async function buildTrends() {
   };
 
   for (const section of SECTION_KEYS) {
-    payload[section] = grouped
+    const ranked = grouped
       .filter((item) => item.category === section)
       .sort((a, b) => {
         if (b.heatScore !== a.heatScore) return b.heatScore - a.heatScore;
@@ -599,10 +615,16 @@ async function buildTrends() {
         const tb = Date.parse(`${b.published_at}T${b.published_time || "00:00:00"}-03:00`);
         return tb - ta;
       })
-      .slice(0, 10)
-      .map((item) => ({
+      .filter((item) => item.age_hours <= 48);
+
+    // Preferencia: itens de hoje, depois fallback recente para completar 10.
+    const todayItems = ranked.filter((x) => x.is_today);
+    const fallback = ranked.filter((x) => !x.is_today);
+    const selected = [...todayItems, ...fallback].slice(0, 10);
+
+    payload[section] = selected.map((item, idx) => ({
         name: item.name,
-        badge: item.badge,
+        badge: idx < 2 ? "hot" : idx < 6 ? "rising" : "new",
         desc: item.desc,
         source: item.source,
         published_at: item.published_at,
