@@ -391,6 +391,26 @@ function currentHourSp() {
   );
 }
 
+function currentMinuteOfDaySp() {
+  const now = new Date();
+  const hh = Number(
+    now.toLocaleTimeString("en-GB", {
+      timeZone: "America/Sao_Paulo",
+      hour: "2-digit",
+      hour12: false,
+    }),
+  );
+  const mm = Number(
+    now.toLocaleTimeString("en-GB", {
+      timeZone: "America/Sao_Paulo",
+      minute: "2-digit",
+      hour12: false,
+    }),
+  );
+  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return 0;
+  return Math.max(0, Math.min(23 * 60 + 59, hh * 60 + mm));
+}
+
 function normalizeTitle(title, sourceName) {
   let t = cleanText(title);
   const parts = t.split(" - ");
@@ -1057,7 +1077,7 @@ async function refreshData(force = false) {
 }
 
 function buildPulsePayload() {
-  const checkpoints = state.pulse.map((cp) => ({
+  let checkpoints = state.pulse.map((cp) => ({
     ts: cp.ts,
     total: cp.total,
   }));
@@ -1109,13 +1129,61 @@ function buildPulsePayload() {
 
   const topicNames = picked.slice(0, PULSE_TOPICS);
 
-  const series = topicNames.map((name) => ({
-    name: state.topicLabels[name] || name,
-    key: name,
-    points: state.pulse.map((cp) => ({
-      ts: cp.ts,
-      value: Number(cp.topics?.[name] || 0),
-    })),
+  // Série em resolução de minuto, desde 00:00 até o minuto atual (SP).
+  const currentMinute = currentMinuteOfDaySp();
+  const dateKey = state.lastDateKey || todayIso();
+  checkpoints = Array.from({ length: currentMinute + 1 }, (_, minute) => {
+    const hh = String(Math.floor(minute / 60)).padStart(2, "0");
+    const mm = String(minute % 60).padStart(2, "0");
+    return {
+      ts: `${dateKey}T${hh}:${mm}:00-03:00`,
+      total: 0,
+    };
+  });
+
+  const series = topicNames.map((name) => {
+    const rawByMinute = Array.from({ length: currentMinute + 1 }, () => null);
+    for (const cp of state.pulse) {
+      const d = new Date(cp.ts);
+      const hh = Number(
+        d.toLocaleTimeString("en-GB", {
+          timeZone: "America/Sao_Paulo",
+          hour: "2-digit",
+          hour12: false,
+        }),
+      );
+      const mm = Number(
+        d.toLocaleTimeString("en-GB", {
+          timeZone: "America/Sao_Paulo",
+          minute: "2-digit",
+          hour12: false,
+        }),
+      );
+      const idx = hh * 60 + mm;
+      if (idx >= 0 && idx <= currentMinute) {
+        rawByMinute[idx] = Number(cp.topics?.[name] || 0);
+      }
+    }
+
+    let carry = 0;
+    const points = rawByMinute.map((value, minute) => {
+      if (value !== null) carry = value;
+      return {
+        ts: checkpoints[minute].ts,
+        value: carry,
+      };
+    });
+
+    return {
+      name: state.topicLabels[name] || name,
+      key: name,
+      points,
+    };
+  });
+
+  checkpoints = checkpoints.map((cp, minute) => ({
+    ...cp,
+    total: series.reduce((acc, line) => acc + (line.points[minute]?.value || 0), 0),
   }));
 
   let movers = [];
