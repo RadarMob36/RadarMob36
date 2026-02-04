@@ -792,10 +792,11 @@
             const left = 12;
             const right = width - 12;
             const top = 12;
-            const bottom = height - 12;
+            const bottom = height - 26;
             const pointsLen = Math.max(...series.map((s) => (s.points || []).length));
             const stepX = pointsLen > 1 ? (right - left) / (pointsLen - 1) : 0;
             const isFlat = max === min;
+            const allZero = max === 0 && min === 0;
 
             ctx.strokeStyle = 'rgba(255,255,255,0.12)';
             ctx.lineWidth = 1;
@@ -809,7 +810,7 @@
                 ctx.beginPath();
                 lineValues.forEach((v, i) => {
                     const x = left + i * stepX;
-                    const y = isFlat ? (top + bottom) / 2 : bottom - ((v - min) / range) * (bottom - top);
+                    const y = allZero ? bottom : (isFlat ? (top + bottom) / 2 : bottom - ((v - min) / range) * (bottom - top));
                     if (i === 0) ctx.moveTo(x, y);
                     else ctx.lineTo(x, y);
                 });
@@ -819,12 +820,21 @@
 
                 lineValues.forEach((v, i) => {
                     const x = left + i * stepX;
-                    const y = isFlat ? (top + bottom) / 2 : bottom - ((v - min) / range) * (bottom - top);
+                    const y = allZero ? bottom : (isFlat ? (top + bottom) / 2 : bottom - ((v - min) / range) * (bottom - top));
                     ctx.beginPath();
                     ctx.arc(x, y, 2.4, 0, Math.PI * 2);
                     ctx.fillStyle = PULSE_COLORS[idx % PULSE_COLORS.length];
                     ctx.fill();
                 });
+            });
+
+            // Marcas de hora no eixo X (dia inteiro).
+            ctx.fillStyle = 'rgba(240,244,248,0.55)';
+            ctx.font = '11px "Work Sans", sans-serif';
+            ctx.textAlign = 'center';
+            [0, 6, 12, 18, 23].forEach((hour) => {
+                const x = left + hour * stepX;
+                ctx.fillText(String(hour).padStart(2, '0') + ':00', x, height - 8);
             });
         }
 

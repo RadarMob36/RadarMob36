@@ -524,6 +524,8 @@ function computeTotalScore(scoreMap) {
 const state = {
   trends: null,
   pulse: [],
+  hourlyTopics: {},
+  seenItemKeys: new Set(),
   lastRefreshTs: 0,
   lastDateKey: null,
   refreshing: false,
@@ -543,6 +545,29 @@ async function refreshData(force = false) {
     if (dateKey && state.lastDateKey && state.lastDateKey !== dateKey) {
       // Virou o dia em SP: reinicia o pulso para refletir apenas o dia atual.
       state.pulse = [];
+      state.hourlyTopics = {};
+      state.seenItemKeys = new Set();
+    }
+
+    // Acumula score por hora (00-23) para formar o gráfico diário.
+    for (const section of SECTION_KEYS) {
+      const items = Array.isArray(trends?.[section]) ? trends[section] : [];
+      for (const item of items) {
+        const topic = normalizeTopicName(item.name);
+        if (!topic) continue;
+
+        const hour = Number(String(item.published_time || "").slice(0, 2));
+        if (!Number.isInteger(hour) || hour < 0 || hour > 23) continue;
+
+        const uniqueKey = `${dateKey}|${topic}|${item.source}|${item.published_at}|${item.published_time}|${item.name}`;
+        if (state.seenItemKeys.has(uniqueKey)) continue;
+        state.seenItemKeys.add(uniqueKey);
+
+        if (!state.hourlyTopics[topic]) {
+          state.hourlyTopics[topic] = Array.from({ length: 24 }, () => 0);
+        }
+        state.hourlyTopics[topic][hour] += itemScore(item);
+      }
     }
 
     const scoreMap = buildScoreMap(trends);
@@ -587,37 +612,27 @@ function buildPulsePayload() {
   }
 
   const latest = state.pulse[state.pulse.length - 1].topics;
-  const topicNames = Object.entries(latest)
-    .sort((a, b) => b[1] - a[1])
+  const topicNames = Object.entries(state.hourlyTopics)
+    .map(([name, points]) => ({
+      name,
+      total: points.reduce((acc, v) => acc + v, 0),
+    }))
+    .sort((a, b) => b.total - a.total)
     .slice(0, PULSE_TOPICS)
-    .map(([name]) => name);
+    .map((x) => x.name);
 
   let series = topicNames.map((name) => ({
     name,
-    points: state.pulse.map((cp) => ({
-      ts: cp.ts,
-      value: cp.topics[name] || 0,
+    points: Array.from({ length: 24 }, (_, hour) => ({
+      ts: `${state.lastDateKey || todayIso()}T${String(hour).padStart(2, "0")}:00:00-03:00`,
+      value: state.hourlyTopics[name]?.[hour] || 0,
     })),
   }));
 
-  if (checkpoints.length === 1) {
-    const first = checkpoints[0];
-    const prevTs = new Date(Date.parse(first.ts) - REFRESH_MS).toISOString();
-    checkpoints = [
-      { ts: prevTs, total: first.total },
-      first,
-    ];
-    series = series.map((line) => {
-      const current = line.points[0] || { ts: first.ts, value: 0 };
-      return {
-        ...line,
-        points: [
-          { ts: prevTs, value: current.value },
-          current,
-        ],
-      };
-    });
-  }
+  checkpoints = Array.from({ length: 24 }, (_, hour) => ({
+    ts: `${state.lastDateKey || todayIso()}T${String(hour).padStart(2, "0")}:00:00-03:00`,
+    total: series.reduce((acc, line) => acc + (line.points[hour]?.value || 0), 0),
+  }));
 
   let movers = [];
   if (state.pulse.length >= 2) {
