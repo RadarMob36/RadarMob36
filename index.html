@@ -4,16 +4,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TRENDS BRASIL MOB36</title>
+    <title>RADAR MOB36: Trends Brasil</title>
     <link rel="icon" type="image/png" href="/mob36-logo.png">
     <link rel="icon" type="image/svg+xml" href="/mob36-logo.svg">
     <link rel="shortcut icon" href="/mob36-logo.png">
     <link rel="apple-touch-icon" href="/mob36-logo.png">
-    <meta property="og:title" content="TRENDS BRASIL MOB36">
+    <meta property="og:title" content="RADAR MOB36: Trends Brasil">
+    <meta property="og:site_name" content="RADAR MOB36">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://radarmob36.onrender.com">
     <meta property="og:description" content="Monitor automático de trends ao vivo do Brasil">
     <meta property="og:image" content="https://radarmob36.onrender.com/mob36-logo.png">
+    <meta property="og:image:width" content="496">
+    <meta property="og:image:height" content="500">
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="TRENDS BRASIL MOB36">
+    <meta name="twitter:title" content="RADAR MOB36: Trends Brasil">
     <meta name="twitter:description" content="Monitor automático de trends ao vivo do Brasil">
     <meta name="twitter:image" content="https://radarmob36.onrender.com/mob36-logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;800&display=swap"
@@ -83,8 +88,10 @@
         }
 
         .brand-logo {
-            width: 72px;
-            height: 86px;
+            width: 84px;
+            height: auto;
+            aspect-ratio: 496 / 500;
+            object-fit: contain;
             margin-bottom: 14px;
             filter: drop-shadow(0 8px 24px rgba(213, 209, 10, 0.35));
         }
@@ -913,7 +920,22 @@
                 return `${d}/${m}/${y}`;
             };
 
-            let itemsHtml = items.map(item => `
+            const badgeRank = { hot: 0, rising: 1, new: 2 };
+            const itemTimestamp = (item) => {
+                const date = item?.published_at || '';
+                const time = item?.published_time || '00:00:00';
+                const parsed = new Date(`${date}T${time}`);
+                return Number.isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+            };
+
+            const sortedItems = [...items].sort((a, b) => {
+                const rankA = badgeRank[a?.badge] ?? 99;
+                const rankB = badgeRank[b?.badge] ?? 99;
+                if (rankA !== rankB) return rankA - rankB;
+                return itemTimestamp(b) - itemTimestamp(a);
+            });
+
+            let itemsHtml = sortedItems.map(item => `
                 <div class="trend-item">
                     <div class="trend-name">
                         <a class="trend-link" href="${item.url || '#'}" target="_blank" rel="noopener noreferrer">${item.name}</a>
