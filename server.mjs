@@ -360,15 +360,22 @@ function normalizeTopicName(name) {
 function derivePulseTopic(item) {
   const name = String(item?.name || "");
   const desc = String(item?.desc || "");
-  const text = `${name} ${desc}`.toLowerCase();
+  const source = String(item?.source || "").toLowerCase();
+  let text = `${name} ${desc}`.toLowerCase();
 
-  if (/\bbbb\b|big brother|pared[aã]o|anjo|prova do l[ií]der/.test(text))
-    return "BBB";
+  // Remove ruído comum que vira "assunto" indevido no gráfico.
+  text = text
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/\b(g1|cnn brasil|uol|splash|purepeople|contigo|ofuxico|quem|extra|tmz|deuxmoi|alfinetei|choquei|rainha matos|gossip do dia|instagram)\b/g, " ")
+    .replace(/[^\p{L}\p{N}#\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
-  const hashtag = name.match(/#([A-Za-z0-9_]+)/);
-  if (hashtag?.[1]) return `#${hashtag[1].toUpperCase()}`;
+  if (/\bbbb\b|big brother|pared[aã]o|anjo|prova do l[ií]der/.test(text)) return "BBB";
+  if (/\btiktok\b|#fyp|foryou|viral/.test(text)) return "TikTok";
+  if (/\bx\b|twitter|trend topics/.test(text) && source.includes("x")) return "X / Twitter";
 
-  const sports = [
+  const teams = [
     "flamengo",
     "palmeiras",
     "corinthians",
@@ -379,15 +386,34 @@ function derivePulseTopic(item) {
     "internacional",
     "cruzeiro",
     "atlético mineiro",
+    "atlético-mg",
     "botafogo",
+    "bahia",
+    "fortaleza",
+    "ceará",
+    "sport",
   ];
-  for (const team of sports) {
+  for (const team of teams) {
     if (text.includes(team)) return team.replace(/\b\w/g, (c) => c.toUpperCase());
   }
+  if (/\bfutebol\b|brasileir[aã]o|libertadores|copa do brasil|champions|nba|nfl|ufc|f1/.test(text)) {
+    return "Esportes";
+  }
 
-  const head = name.split(/[-|:]/)[0].trim();
-  const short = head.split(/\s+/).slice(0, 3).join(" ");
-  return short || "Assunto";
+  const hashtag = name.match(/#([A-Za-z0-9_]+)/);
+  if (hashtag?.[1]) return `#${hashtag[1].toUpperCase()}`;
+
+  // Pega um rótulo curto e útil do título.
+  const cleanedTitle = name
+    .replace(/\b(G1|CNN Brasil|UOL|Splash|Purepeople|Contigo|OFuxico|Quem|Extra|TMZ|Deuxmoi|Alfinetei|Choquei)\b/gi, "")
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const short = cleanedTitle.split(/\s+/).slice(0, 2).join(" ");
+
+  if (!short || short.length < 3) return null;
+  if (/^(alfinetei|choquei|gossip|instagram|portal)$/i.test(short)) return null;
+  return short;
 }
 
 function categoryFromText(text, hint) {
