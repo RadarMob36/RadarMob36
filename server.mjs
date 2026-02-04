@@ -34,6 +34,8 @@ loadDotEnv();
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || "127.0.0.1";
 const REFRESH_MS = Number(process.env.REFRESH_MS || 120000);
+const X_BEARER_TOKEN = process.env.X_BEARER_TOKEN || "";
+const X_BRAZIL_WOEID = process.env.X_BRAZIL_WOEID || "23424768";
 const MAX_PULSE_POINTS = 40;
 const PULSE_TOPICS = 5;
 const CELEBRITY_SOURCES = [
@@ -629,16 +631,89 @@ async function fetchText(url) {
   }
 }
 
+async function fetchJson(url, headers = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 9000);
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        "User-Agent": "trends-brasil/1.0",
+        ...headers,
+      },
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return await response.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function parseXTrendsFromApi(payload, source, today) {
+  const now = new Date();
+  const time = now.toLocaleTimeString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+  const trendList = Array.isArray(payload?.[0]?.trends) ? payload[0].trends : [];
+  const seen = new Set();
+
+  return trendList
+    .map((trend, idx) => {
+      const topic = extractShortXTopic(trend?.name || "");
+      const key = normalizeTopicName(topic);
+      if (!topic || !key || seen.has(key)) return null;
+      seen.add(key);
+      return {
+        name: topic,
+        badge: idx < 3 ? "hot" : idx < 7 ? "rising" : "new",
+        desc: "Trend topic oficial do X no Brasil",
+        source: source.name,
+        url: cleanText(trend?.url) || `https://x.com/search?q=${encodeURIComponent(topic)}&src=typed_query`,
+        published_at: today,
+        published_time: time,
+        published_ts: now.getTime(),
+        is_today: true,
+        age_hours: 0,
+        category: "x_twitter",
+      };
+    })
+    .filter(Boolean)
+    .slice(0, 20);
+}
+
 async function buildTrends() {
   const today = todayIso();
-  const tasks = SOURCES.map(async (source) => {
+  const activeSources = [...SOURCES];
+  if (X_BEARER_TOKEN) {
+    activeSources.unshift({
+      name: "X API Official BR",
+      url: `https://api.twitter.com/1.1/trends/place.json?id=${encodeURIComponent(X_BRAZIL_WOEID)}`,
+      hint: "x_twitter",
+      type: "x_api_v1",
+    });
+  }
+
+  const tasks = activeSources.map(async (source) => {
     try {
-      const raw = await fetchText(source.url);
-      const items =
-        source.type === "x_html"
-          ? parseXTrendsFromHtml(raw, source, today)
-          : parseRssItems(raw, source, today);
-      return { source: source.name, ok: true, items, count: items.length };
+      const items = (() => {
+        if (source.type === "x_api_v1") {
+          return fetchJson(source.url, {
+            Authorization: `Bearer ${X_BEARER_TOKEN}`,
+          }).then((payload) => parseXTrendsFromApi(payload, source, today));
+        }
+        return fetchText(source.url).then((raw) =>
+          source.type === "x_html" ? parseXTrendsFromHtml(raw, source, today) : parseRssItems(raw, source, today),
+        );
+      })();
+      const resolvedItems = await items;
+      return { source: source.name, ok: true, items: resolvedItems, count: resolvedItems.length };
     } catch (error) {
       return {
         source: source.name,
@@ -759,13 +834,25 @@ async function buildTrends() {
         }
         if (section === "x_twitter") {
           return (
-            /(trend24|getdaytrends|x \/ twitter|x trend topics)/.test(source) &&
+            /(x api official br|trend24|getdaytrends|x \/ twitter|x trend topics)/.test(source) &&
             String(item.name || "").length <= 40
           );
         }
         return true;
       })
       .sort((a, b) => {
+        if (section === "x_twitter") {
+          const score = (src) => {
+            const s = String(src || "").toLowerCase();
+            if (s.includes("x api official br")) return 3;
+            if (s.includes("trend24") || s.includes("getdaytrends")) return 2;
+            if (s.includes("x / twitter") || s.includes("x trend topics")) return 1;
+            return 0;
+          };
+          const sa = score(a.source);
+          const sb = score(b.source);
+          if (sb !== sa) return sb - sa;
+        }
         if (b.heatScore !== a.heatScore) return b.heatScore - a.heatScore;
         const ta = Date.parse(`${a.published_at}T${a.published_time || "00:00:00"}-03:00`);
         const tb = Date.parse(`${b.published_at}T${b.published_time || "00:00:00"}-03:00`);
