@@ -1128,7 +1128,7 @@ function buildPulsePayload() {
   const latestCheckpoint = state.pulse[state.pulse.length - 1];
   const latest = latestCheckpoint?.topics || {};
   const totalsFromCheckpoints = {};
-  for (const [name, arr] of Object.entries(state.minuteTopics || {})) {
+  for (const [name, arr] of Object.entries(state.hourlyTopics || {})) {
     totalsFromCheckpoints[name] = (arr || []).reduce((acc, v) => acc + (Number(v) || 0), 0);
   }
 
@@ -1158,29 +1158,42 @@ function buildPulsePayload() {
 
   const topicNames = picked.slice(0, PULSE_TOPICS);
 
-  // Série em resolução de minuto, desde 00:00 até o minuto atual (SP).
+  // Série base por hora (00:00 até hora atual), com um ponto extra no minuto atual.
   const currentMinute = currentMinuteOfDaySp();
+  const currentHour = Math.floor(currentMinute / 60);
+  const currentMinuteInHour = currentMinute % 60;
   const dateKey = state.lastDateKey || todayIso();
-  checkpoints = Array.from({ length: currentMinute + 1 }, (_, minute) => {
-    const hh = String(Math.floor(minute / 60)).padStart(2, "0");
-    const mm = String(minute % 60).padStart(2, "0");
+  checkpoints = Array.from({ length: currentHour + 1 }, (_, hour) => {
+    const hh = String(hour).padStart(2, "0");
     return {
-      ts: `${dateKey}T${hh}:${mm}:00-03:00`,
+      ts: `${dateKey}T${hh}:00:00-03:00`,
       total: 0,
     };
   });
 
   const series = topicNames.map((name) => {
-    const arr = state.minuteTopics[name] || Array.from({ length: 1440 }, () => 0);
-    const points = Array.from({ length: currentMinute + 1 }, (_, minute) => {
-      // Janela móvel para dar dinamismo sem perder histórico do dia.
-      const from = Math.max(0, minute - 29);
-      const windowValue = arr.slice(from, minute + 1).reduce((acc, v) => acc + (Number(v) || 0), 0);
+    const arr = state.hourlyTopics[name] || Array.from({ length: 24 }, () => 0);
+    const points = Array.from({ length: currentHour + 1 }, (_, hour) => {
+      const from = Math.max(0, hour - 2);
+      const windowValue = arr.slice(from, hour + 1).reduce((acc, v) => acc + (Number(v) || 0), 0);
       return {
-        ts: checkpoints[minute].ts,
+        ts: checkpoints[hour].ts,
         value: windowValue,
       };
     });
+
+    if (currentMinuteInHour > 0) {
+      const minuteArr = state.minuteTopics[name] || Array.from({ length: 1440 }, () => 0);
+      const fromMinute = Math.max(0, currentMinute - 29);
+      const minuteWindow = minuteArr
+        .slice(fromMinute, currentMinute + 1)
+        .reduce((acc, v) => acc + (Number(v) || 0), 0);
+      const fallback = points[points.length - 1]?.value || 0;
+      points.push({
+        ts: `${dateKey}T${String(currentHour).padStart(2, "0")}:${String(currentMinuteInHour).padStart(2, "0")}:00-03:00`,
+        value: minuteWindow || fallback,
+      });
+    }
 
     return {
       name: state.topicLabels[name] || name,
@@ -1189,17 +1202,24 @@ function buildPulsePayload() {
     };
   });
 
-  checkpoints = checkpoints.map((cp, minute) => ({
+  if (currentMinuteInHour > 0) {
+    checkpoints.push({
+      ts: `${dateKey}T${String(currentHour).padStart(2, "0")}:${String(currentMinuteInHour).padStart(2, "0")}:00-03:00`,
+      total: 0,
+    });
+  }
+
+  checkpoints = checkpoints.map((cp, idx) => ({
     ...cp,
-    total: series.reduce((acc, line) => acc + (line.points[minute]?.value || 0), 0),
+    total: series.reduce((acc, line) => acc + (line.points[idx]?.value || 0), 0),
   }));
 
   let movers = [];
   movers = topicNames
     .map((name) => {
-      const arr = state.minuteTopics[name] || [];
-      const current = Number(arr[currentMinute] || 0);
-      const prev = Number(currentMinute > 0 ? arr[currentMinute - 1] || 0 : 0);
+      const arr = state.hourlyTopics[name] || [];
+      const current = Number(arr[currentHour] || 0);
+      const prev = Number(currentHour > 0 ? arr[currentHour - 1] || 0 : 0);
       const total = Number(totalsFromCheckpoints[name] || 0);
       return {
         name: state.topicLabels[name] || name,
@@ -1219,8 +1239,6 @@ function buildPulsePayload() {
       return { name: state.topicLabels[name] || name, delta: 0, score: total };
     });
   }
-
-  const currentHour = currentHourSp();
 
   return {
     checkpoints,
