@@ -173,6 +173,19 @@ function toIsoDate(value, fallbackIso) {
   return d.toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 }
 
+function toBrTime(value) {
+  if (!value) return "00:00:00";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "00:00:00";
+  return d.toLocaleTimeString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
 function todayIso() {
   return new Date().toLocaleDateString("en-CA", {
     timeZone: "America/Sao_Paulo",
@@ -256,11 +269,13 @@ function parseRssItems(xml, source, today) {
       const link = extractTag(block, "link");
       const description = cleanText(extractTag(block, "description"));
       const sourceTag = extractTag(block, "source");
+      const newsItemUrl = extractTag(block, "h:news_item_url");
       const pubDateRaw =
         extractTag(block, "pubDate") ||
         extractTag(block, "published") ||
         extractTag(block, "updated");
       const publishedAt = toIsoDate(pubDateRaw, today);
+      const publishedTime = toBrTime(pubDateRaw);
       const sourceName = sourceTag || source.name;
       const title = normalizeTitle(rawTitle, sourceName);
 
@@ -273,8 +288,9 @@ function parseRssItems(xml, source, today) {
         badge: badgeForItem(idx, publishedAt, today),
         desc: description,
         source: sourceName,
-        url: cleanText(link),
+        url: cleanText(newsItemUrl || link),
         published_at: publishedAt,
+        published_time: publishedTime,
         category: categoryFromText(allText, source.hint),
       };
     })
@@ -354,7 +370,11 @@ async function buildTrends() {
         desc: item.desc,
         source: item.source,
         published_at: item.published_at,
-        url: item.url || buildFallbackUrl(item.name, item.category),
+        published_time: item.published_time,
+        url:
+          !item.url || item.url.includes("/trending/rss")
+            ? buildFallbackUrl(item.name, item.category)
+            : item.url,
       }));
   }
 

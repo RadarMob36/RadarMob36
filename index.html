@@ -857,7 +857,7 @@
                         <span class="badge badge-${item.badge}">${item.badge}</span>
                     </div>
                     <div class="trend-desc">${item.desc || ''}</div>
-                    <div class="trend-source">📡 ${item.source || 'Web'}${item.published_at ? ' • ' + item.published_at : ''}</div>
+                    <div class="trend-source">📡 ${item.source || 'Web'}${item.published_at ? ' • ' + item.published_at : ''}${item.published_time ? ' ' + item.published_time : ''}</div>
                     <div class="trend-actions">
                         <a class="trend-open" href="${item.url || '#'}" target="_blank" rel="noopener noreferrer">Abrir assunto</a>
                     </div>
