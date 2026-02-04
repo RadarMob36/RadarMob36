@@ -895,11 +895,13 @@
             series.forEach((line, idx) => {
                 const lineValues = (line.points || []).map((p) => Number(p.value) || 0);
                 const color = PULSE_COLORS[idx % PULSE_COLORS.length];
+                const lineOffset = ((idx % 5) - 2) * 1.2;
                 const pts = [];
                 ctx.beginPath();
                 lineValues.forEach((v, i) => {
                     const x = left + i * stepX;
-                    const y = allZero ? bottom : (isFlat ? (top + bottom) / 2 : bottom - ((v - min) / range) * (bottom - top));
+                    const yBase = allZero ? bottom : (isFlat ? (top + bottom) / 2 : bottom - ((v - min) / range) * (bottom - top));
+                    const y = yBase + lineOffset;
                     if (i === 0) ctx.moveTo(x, y);
                     else ctx.lineTo(x, y);
                     pts.push({ x, y, value: v, hour: i });
@@ -916,7 +918,7 @@
                 lineValues.forEach((v, i) => {
                     const x = left + i * stepX;
                     const y = allZero ? bottom : (isFlat ? (top + bottom) / 2 : bottom - ((v - min) / range) * (bottom - top));
-                    const overlapOffset = ((idx % 5) - 2) * 0.9;
+                    const overlapOffset = ((idx % 5) - 2) * 1.2;
                     ctx.beginPath();
                     ctx.arc(x, y + overlapOffset, 3.1, 0, Math.PI * 2);
                     ctx.fillStyle = color;
