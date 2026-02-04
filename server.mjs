@@ -363,6 +363,13 @@ function derivePulseTopic(item) {
   const source = String(item?.source || "").toLowerCase();
   let text = `${name} ${desc}`.toLowerCase();
 
+  if (item?.category === "bbb") return "BBB";
+  if (item?.category === "esportes" && /flamengo|palmeiras|corinthians|vasco|santos|grêmio|internacional|cruzeiro|atlético|botafogo|bahia|fortaleza|ceará/i.test(text)) {
+    // segue para detectar time específico abaixo
+  } else if (item?.category === "esportes") {
+    return "Esportes";
+  }
+
   // Remove ruído comum que vira "assunto" indevido no gráfico.
   text = text
     .replace(/https?:\/\/\S+/g, " ")
