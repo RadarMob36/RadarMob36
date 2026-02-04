@@ -5,16 +5,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TRENDS BRASIL MOB36</title>
+    <link rel="icon" type="image/png" href="/mob36-logo.png">
     <link rel="icon" type="image/svg+xml" href="/mob36-logo.svg">
-    <link rel="shortcut icon" href="/mob36-logo.svg">
-    <link rel="apple-touch-icon" href="/mob36-logo.svg">
+    <link rel="shortcut icon" href="/mob36-logo.png">
+    <link rel="apple-touch-icon" href="/mob36-logo.png">
     <meta property="og:title" content="TRENDS BRASIL MOB36">
     <meta property="og:description" content="Monitor automático de trends ao vivo do Brasil">
-    <meta property="og:image" content="/mob36-logo.svg">
+    <meta property="og:image" content="https://radarmob36.onrender.com/mob36-logo.png">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="TRENDS BRASIL MOB36">
     <meta name="twitter:description" content="Monitor automático de trends ao vivo do Brasil">
-    <meta name="twitter:image" content="/mob36-logo.svg">
+    <meta name="twitter:image" content="https://radarmob36.onrender.com/mob36-logo.png">
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;800&display=swap"
         rel="stylesheet">
     <style>
@@ -577,7 +578,7 @@
 
     <div class="container">
         <div class="header">
-            <img src="/mob36-logo.svg" alt="MOB36" class="brand-logo">
+            <img src="/mob36-logo.png" alt="MOB36" class="brand-logo">
             <h1>TRENDS BRASIL MOB36</h1>
             <p>Monitor Automático em Tempo Real</p>
         </div>
@@ -872,6 +873,12 @@
             const card = document.createElement('div');
             card.className = 'trend-card';
 
+            const formatDateBr = (isoDate) => {
+                if (!isoDate || !/^\d{4}-\d{2}-\d{2}$/.test(isoDate)) return isoDate || '';
+                const [y, m, d] = isoDate.split('-');
+                return `${d}/${m}/${y}`;
+            };
+
             let itemsHtml = items.map(item => `
                 <div class="trend-item">
                     <div class="trend-name">
@@ -879,7 +886,7 @@
                         <span class="badge badge-${item.badge}">${item.badge}</span>
                     </div>
                     <div class="trend-desc">${item.desc || ''}</div>
-                    <div class="trend-source">📡 ${item.source || 'Web'}${item.published_at ? ' • ' + item.published_at : ''}${item.published_time ? ' ' + item.published_time : ''}</div>
+                    <div class="trend-source">📡 ${item.source || 'Web'}${item.published_at ? ' • ' + formatDateBr(item.published_at) : ''}${item.published_time ? ' ' + item.published_time : ''}</div>
                     <div class="trend-actions">
                         <a class="trend-open" href="${item.url || '#'}" target="_blank" rel="noopener noreferrer">Abrir assunto</a>
                     </div>

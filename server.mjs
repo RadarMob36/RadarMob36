@@ -509,6 +509,7 @@ const state = {
   trends: null,
   pulse: [],
   lastRefreshTs: 0,
+  lastDateKey: null,
   refreshing: false,
   lastError: null,
 };
@@ -522,6 +523,12 @@ async function refreshData(force = false) {
   state.refreshing = true;
   try {
     const trends = await buildTrends();
+    const dateKey = trends?.meta?.date || null;
+    if (dateKey && state.lastDateKey && state.lastDateKey !== dateKey) {
+      // Virou o dia em SP: reinicia o pulso para refletir apenas o dia atual.
+      state.pulse = [];
+    }
+
     const scoreMap = buildScoreMap(trends);
     const checkpoint = {
       ts: new Date().toISOString(),
@@ -531,6 +538,7 @@ async function refreshData(force = false) {
 
     state.trends = trends;
     state.lastRefreshTs = now;
+    state.lastDateKey = dateKey;
     state.lastError = null;
     state.pulse.push(checkpoint);
     if (state.pulse.length > MAX_PULSE_POINTS) {
