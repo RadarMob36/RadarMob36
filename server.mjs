@@ -519,10 +519,11 @@ function parseRssItems(xml, source, today) {
         extractTag(block, "published") ||
         extractTag(block, "updated");
       const pubDate = parsePubDate(pubDateRaw);
+      if (!pubDate) return null;
       const nowTs = Date.now();
-      const publishedAt = pubDate?.date || today;
-      const publishedTime = pubDate?.time || "00:00:00";
-      const publishedTs = pubDate?.ts || nowTs;
+      const publishedAt = pubDate.date;
+      const publishedTime = pubDate.time;
+      const publishedTs = pubDate.ts;
       const sourceName = sourceTag || source.name;
       const title = normalizeTitle(rawTitle, sourceName);
 
@@ -545,6 +546,21 @@ function parseRssItems(xml, source, today) {
       };
     })
     .filter(Boolean);
+}
+
+function isWeakArticle(item) {
+  const title = String(item?.name || "").toLowerCase();
+  const url = String(item?.url || "").toLowerCase();
+  const desc = String(item?.desc || "").toLowerCase();
+  const text = `${title} ${desc}`;
+
+  if (/p[aá]gina\s*\d+/.test(text)) return true;
+  if (/^\s*not[ií]cias?\s+sobre\b/.test(title)) return true;
+  if (/(\/tag\/|\/tags\/|\/categoria\/|\/author\/|\/page\/|\/pagina\/)/.test(url))
+    return true;
+  if (/(lista de|arquivo de|todas as not[ií]cias)/.test(text)) return true;
+
+  return false;
 }
 
 function parseXTrendsFromHtml(html, source, today) {
@@ -717,7 +733,7 @@ async function buildTrends() {
           ? buildFallbackUrl(group.name, category)
           : latest.url,
     };
-  });
+  }).filter((item) => !isWeakArticle(item));
 
   const payload = {
     bbb: [],
