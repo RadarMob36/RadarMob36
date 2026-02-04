@@ -46,6 +46,17 @@ const CELEBRITY_SOURCES = [
   "ofuxico",
   "extra famosos",
   "gente (terra)",
+  "terra gente",
+  "caras",
+  "gshow",
+  "metrópoles",
+  "metropoles",
+  "gossip do dia",
+  "choquei",
+  "alfinetei",
+  "rainha matos",
+  "vem me buscar hebe",
+  "beyonce destruidora",
   "tmz",
   "deuxmoi",
   "revistaquem",
@@ -155,6 +166,51 @@ const SOURCES = [
     name: "X Trend Topics BR",
     url: "https://news.google.com/rss/search?q=twitter+trending+topics+brasil+site:x.com&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "x_twitter",
+  },
+  {
+    name: "CARAS Brasil",
+    url: "https://news.google.com/rss/search?q=site:caras.com.br+famosos&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "celebridades",
+  },
+  {
+    name: "gshow",
+    url: "https://news.google.com/rss/search?q=site:gshow.globo.com+famosos+OR+bbb&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "celebridades",
+  },
+  {
+    name: "Metrópoles Entretenimento",
+    url: "https://news.google.com/rss/search?q=site:metropoles.com/entretenimento+famosos&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "celebridades",
+  },
+  {
+    name: "Instagram Gossip do Dia",
+    url: "https://news.google.com/rss/search?q=site:instagram.com/gossipdodia&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "fofocas",
+  },
+  {
+    name: "Choquei",
+    url: "https://news.google.com/rss/search?q=Choquei+famosos+site:x.com&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "fofocas",
+  },
+  {
+    name: "Alfinetei",
+    url: "https://news.google.com/rss/search?q=Alfinetei+famosos+site:x.com&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "fofocas",
+  },
+  {
+    name: "Rainha Matos",
+    url: "https://news.google.com/rss/search?q=Rainha+Matos+famosos+site:x.com&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "fofocas",
+  },
+  {
+    name: "Vem Me Buscar Hebe",
+    url: "https://news.google.com/rss/search?q=Vem+Me+Buscar+Hebe+famosos&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "fofocas",
+  },
+  {
+    name: "Beyonce Destruidora",
+    url: "https://news.google.com/rss/search?q=Beyonce+Destruidora+famosos&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "fofocas",
   },
 ];
 
@@ -403,6 +459,12 @@ async function buildTrends() {
     date: today,
     sources_ok: results.filter((r) => r.ok).length,
     sources_total: results.length,
+    source_status: results.map((r) => ({
+      source: r.source,
+      ok: r.ok,
+      items: r.count,
+      error: r.ok ? null : r.error,
+    })),
   };
 
   return payload;

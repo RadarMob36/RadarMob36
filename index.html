@@ -6,6 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TRENDS BRASIL MOB36</title>
     <link rel="icon" type="image/svg+xml" href="/mob36-logo.svg">
+    <link rel="shortcut icon" href="/mob36-logo.svg">
+    <link rel="apple-touch-icon" href="/mob36-logo.svg">
+    <meta property="og:title" content="TRENDS BRASIL MOB36">
+    <meta property="og:description" content="Monitor automático de trends ao vivo do Brasil">
+    <meta property="og:image" content="/mob36-logo.svg">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="TRENDS BRASIL MOB36">
+    <meta name="twitter:description" content="Monitor automático de trends ao vivo do Brasil">
+    <meta name="twitter:image" content="/mob36-logo.svg">
     <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Work+Sans:wght@400;600;800&display=swap"
         rel="stylesheet">
     <style>
@@ -616,10 +625,19 @@
                 <span class="source-tag-small">TMZ</span>
                 <span class="source-tag-small">Deuxmoi</span>
                 <span class="source-tag-small">X / Twitter</span>
+                <span class="source-tag-small">Choquei</span>
+                <span class="source-tag-small">Gossip do Dia</span>
+                <span class="source-tag-small">Alfinetei</span>
+                <span class="source-tag-small">Rainha Matos</span>
+                <span class="source-tag-small">Vem Me Buscar Hebe</span>
+                <span class="source-tag-small">Beyonce Destruidora</span>
                 <span class="source-tag-small">Google Trends BR</span>
                 <span class="source-tag-small">CNN Brasil</span>
                 <span class="source-tag-small">G1</span>
                 <span class="source-tag-small">O Tempo</span>
+                <span class="source-tag-small">CARAS</span>
+                <span class="source-tag-small">gshow</span>
+                <span class="source-tag-small">Metrópoles</span>
             </div>
             <p style="margin-top: 20px;">
                 ✅ Sistema automático com busca em tempo real<br>
@@ -682,7 +700,11 @@
                 await carregarPulsoGlobal();
 
                 status.className = 'status success';
-                status.textContent = silent ? '⚡ Atualização automática concluída' : '✅ Trends atualizadas com sucesso!';
+                const ok = trends?.meta?.sources_ok ?? '?';
+                const total = trends?.meta?.sources_total ?? '?';
+                status.textContent = silent
+                    ? `⚡ Atualização automática concluída (${ok}/${total} fontes ok)`
+                    : `✅ Trends atualizadas com sucesso! (${ok}/${total} fontes ok)`;
 
                 // Atualizar timestamp
                 const agora = new Date();
