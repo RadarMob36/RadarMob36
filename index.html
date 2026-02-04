@@ -761,17 +761,20 @@
             const series = Array.isArray(pulseData?.series) ? pulseData.series : [];
             if (!checkpoints.length || !series.length) return;
 
-            const values = checkpoints.map((x) => Number(x.total) || 0);
-            if (!values.length) return;
+            const allSeriesValues = series.flatMap((line) =>
+                (line.points || []).map((p) => Number(p.value) || 0)
+            );
+            if (!allSeriesValues.length) return;
 
-            const min = Math.min(...values);
-            const max = Math.max(...values);
+            const min = Math.min(...allSeriesValues);
+            const max = Math.max(...allSeriesValues);
             const range = Math.max(1, max - min);
             const left = 12;
             const right = width - 12;
             const top = 12;
             const bottom = height - 12;
-            const stepX = values.length > 1 ? (right - left) / (values.length - 1) : 0;
+            const pointsLen = Math.max(...series.map((s) => (s.points || []).length));
+            const stepX = pointsLen > 1 ? (right - left) / (pointsLen - 1) : 0;
             const isFlat = max === min;
 
             ctx.strokeStyle = 'rgba(255,255,255,0.12)';
