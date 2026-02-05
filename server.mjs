@@ -110,6 +110,14 @@ const FORA_EIXO_ALLOWED_SOURCES = [
   "guia de midia",
   "guiademidia",
 ];
+const SPORTS_ALLOWED_SOURCES = [
+  "espn",
+  "lance",
+  "uol esporte",
+  "ge",
+  "ge.globo",
+  "globoesporte",
+];
 
 const SOURCES = [
   {
@@ -1238,6 +1246,9 @@ async function buildTrends(sourceOverride) {
         }
         if (section === "celebridades") {
           return /(leo dias|gossip do dia|choquei|contigo|ofuxico)/.test(source);
+        }
+        if (section === "esportes") {
+          return SPORTS_ALLOWED_SOURCES.some((k) => source.includes(k));
         }
         if (section === "x_twitter") {
           return (
