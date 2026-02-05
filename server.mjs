@@ -923,12 +923,12 @@ function isDisallowedForaEixoContent(item) {
   const text = `${item?.name || ""} ${item?.desc || ""} ${item?.source || ""}`.toLowerCase();
   if (/(bbb|big brother|pared[aã]o|anjo|prova do l[ií]der)/.test(text)) return true;
   if (
-    /(prefeito|governador|deputado|senador|senado|c[aâ]mara|congresso|elei[cç][aã]o|partido|pol[ií]tica|ministro|presidente)/.test(
+    /(prefeito|governador|deputado|senador|senado|c[aâ]mara|congresso|elei[cç][aã]o|partido|pol[ií]tica|ministro|presidente|plen[aá]rio|vereador|prefeitura|governo|secretaria|campanha|mandato|justi[cç]a eleitoral|tribunal|stf|tse|mp|minist[eé]rio p[úu]blico)/.test(
       text,
     )
   )
     return true;
-  if (/(economia|econ[oô]mico|d[óo]lar|infla[cç][aã]o|juros|ibovespa|bolsa|banco|pib|emprestimo|finan[cç]as)/.test(text))
+  if (/(economia|econ[oô]mico|d[óo]lar|infla[cç][aã]o|juros|ibovespa|bolsa|banco|pib|emprestimo|finan[cç]as|or[cç]amento|impostos?|tributo|taxa|sal[aá]rio|receita|despesa|d[íi]vida|cr[eé]dito)/.test(text))
     return true;
   return false;
 }
