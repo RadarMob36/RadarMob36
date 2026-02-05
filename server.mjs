@@ -75,6 +75,30 @@ const SECTION_KEYS = [
   "tiktok",
 ];
 const PULSE_SECTIONS = SECTION_KEYS.filter((s) => s !== "fora_eixo");
+const FORA_EIXO_ALLOWED_SOURCES = [
+  "correio braziliense",
+  "correiobraziliense",
+  "diario do amazonas",
+  "d24am",
+  "correio 24 horas",
+  "correio24horas",
+  "o povo",
+  "opovo",
+  "estado de minas",
+  "em.com.br",
+  "o tempo",
+  "otempo",
+  "hoje em dia",
+  "hojeemdia",
+  "gzh",
+  "gauchazh",
+  "gazeta do povo",
+  "gazetadopovo",
+  "nsc total",
+  "nsctotal",
+  "guia de midia",
+  "guiademidia",
+];
 
 const SOURCES = [
   {
@@ -86,6 +110,111 @@ const SOURCES = [
     name: "G1",
     url: "https://news.google.com/rss/search?q=site:g1.globo.com+Brasil&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "noticias",
+  },
+  {
+    name: "Correio Braziliense",
+    url: "https://news.google.com/rss/search?q=site:correiobraziliense.com.br&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "fora_eixo",
+  },
+  {
+    name: "Diário do Amazonas",
+    url: "https://news.google.com/rss/search?q=site:d24am.com&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "fora_eixo",
+  },
+  {
+    name: "Correio 24 Horas",
+    url: "https://news.google.com/rss/search?q=site:correio24horas.com.br&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "fora_eixo",
+  },
+  {
+    name: "O Povo",
+    url: "https://news.google.com/rss/search?q=site:opovo.com.br&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "fora_eixo",
+  },
+  {
+    name: "Estado de Minas",
+    url: "https://news.google.com/rss/search?q=site:em.com.br&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "fora_eixo",
+  },
+  {
+    name: "O Tempo",
+    url: "https://news.google.com/rss/search?q=site:otempo.com.br&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "fora_eixo",
+  },
+  {
+    name: "Hoje em Dia",
+    url: "https://news.google.com/rss/search?q=site:hojeemdia.com.br&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "fora_eixo",
+  },
+  {
+    name: "GZH",
+    url: "https://news.google.com/rss/search?q=site:gauchazh.clicrbs.com.br&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "fora_eixo",
+  },
+  {
+    name: "Gazeta do Povo",
+    url: "https://news.google.com/rss/search?q=site:gazetadopovo.com.br&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "fora_eixo",
+  },
+  {
+    name: "NSC Total",
+    url: "https://news.google.com/rss/search?q=site:nsctotal.com.br&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "fora_eixo",
+  },
+  {
+    name: "Guia de Midia (Acre)",
+    url: "https://www.guiademidia.com.br/jornais.htm#3",
+    hint: "fora_eixo",
+  },
+  {
+    name: "Guia de Midia (Amapa)",
+    url: "https://www.guiademidia.com.br/jornais.htm#7",
+    hint: "fora_eixo",
+  },
+  {
+    name: "Guia de Midia (Para)",
+    url: "https://www.guiademidia.com.br/jornais.htm#29",
+    hint: "fora_eixo",
+  },
+  {
+    name: "Guia de Midia (Rondonia)",
+    url: "https://www.guiademidia.com.br/jornais.htm#49",
+    hint: "fora_eixo",
+  },
+  {
+    name: "Guia de Midia (Roraima)",
+    url: "https://www.guiademidia.com.br/jornais.htm#51",
+    hint: "fora_eixo",
+  },
+  {
+    name: "Guia de Midia (Tocantins)",
+    url: "https://www.guiademidia.com.br/jornais.htm#57",
+    hint: "fora_eixo",
+  },
+  {
+    name: "Guia de Midia (Pernambuco)",
+    url: "https://www.guiademidia.com.br/jornais.htm#40",
+    hint: "fora_eixo",
+  },
+  {
+    name: "Guia de Midia (Paraiba)",
+    url: "https://www.guiademidia.com.br/jornais.htm#36",
+    hint: "fora_eixo",
+  },
+  {
+    name: "Guia de Midia (Rio Grande do Norte)",
+    url: "https://www.guiademidia.com.br/jornais.htm#44",
+    hint: "fora_eixo",
+  },
+  {
+    name: "Guia de Midia (Piaui)",
+    url: "https://www.guiademidia.com.br/jornais.htm#42",
+    hint: "fora_eixo",
+  },
+  {
+    name: "Guia de Midia (Sergipe)",
+    url: "https://www.guiademidia.com.br/jornais.htm#55",
+    hint: "fora_eixo",
   },
   {
     name: "CNN Brasil",
@@ -790,6 +919,25 @@ function isCultureOrGossipLocal(item) {
   return /(fofoca|famos|celebr|atriz|ator|cantor|cantora|novela|reality|bbb|cultura|arte|show|m[uú]sica|festival|teatro|cinema|dan[cç]a|exposi[cç][aã]o|carnaval|bloco|influenciador|babado)/.test(text);
 }
 
+function isDisallowedForaEixoContent(item) {
+  const text = `${item?.name || ""} ${item?.desc || ""} ${item?.source || ""}`.toLowerCase();
+  if (/(bbb|big brother|pared[aã]o|anjo|prova do l[ií]der)/.test(text)) return true;
+  if (
+    /(prefeito|governador|deputado|senador|senado|c[aâ]mara|congresso|elei[cç][aã]o|partido|pol[ií]tica|ministro|presidente)/.test(
+      text,
+    )
+  )
+    return true;
+  if (/(economia|econ[oô]mico|d[óo]lar|infla[cç][aã]o|juros|ibovespa|bolsa|banco|pib|emprestimo|finan[cç]as)/.test(text))
+    return true;
+  return false;
+}
+
+function isAllowedForaEixoSource(sourceName) {
+  const s = String(sourceName || "").toLowerCase();
+  return FORA_EIXO_ALLOWED_SOURCES.some((k) => s.includes(k));
+}
+
 function parseXTrendsFromHtml(html, source, today) {
   const now = new Date();
   const time = now.toLocaleTimeString("pt-BR", {
@@ -1053,10 +1201,11 @@ async function buildTrends() {
       section === "fora_eixo"
         ? grouped.filter(
             (item) =>
-              ["fofocas", "celebridades", "noticias"].includes(item.category) &&
+              isAllowedForaEixoSource(item.source) &&
               isOutsideRioSaoPaulo(item) &&
               isCultureOrGossipLocal(item) &&
-              !isSportsContent(item),
+              !isSportsContent(item) &&
+              !isDisallowedForaEixoContent(item),
           )
         : section === "celebridades"
           ? grouped.filter((item) => /(leo dias|gossip do dia|choquei|contigo|ofuxico)/.test(String(item.source || "").toLowerCase()))
