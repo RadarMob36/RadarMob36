@@ -1058,7 +1058,9 @@ async function buildTrends() {
               isCultureOrGossipLocal(item) &&
               !isSportsContent(item),
           )
-        : grouped.filter((item) => item.category === section);
+        : section === "celebridades"
+          ? grouped.filter((item) => /(leo dias|gossip do dia|choquei|contigo|ofuxico)/.test(String(item.source || "").toLowerCase()))
+          : grouped.filter((item) => item.category === section);
 
     const ranked = baseItems
       .filter((item) => {
