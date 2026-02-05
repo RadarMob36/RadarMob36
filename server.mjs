@@ -1348,6 +1348,15 @@ function computeTotalScore(scoreMap) {
   return Object.values(scoreMap).reduce((acc, value) => acc + value, 0);
 }
 
+function withTimeout(promise, ms, label) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(label || "Timeout")), ms),
+    ),
+  ]);
+}
+
 const state = {
   trends: null,
   pulse: [],
@@ -1374,7 +1383,7 @@ async function refreshData(force = false) {
   state.refreshPromise = (async () => {
     state.refreshing = true;
     try {
-      const trends = await buildTrends();
+      const trends = await withTimeout(buildTrends(), 20000, "Tempo limite ao buscar fontes.");
       const dateKey = trends?.meta?.date || null;
       if (dateKey && state.lastDateKey && state.lastDateKey !== dateKey) {
         // Virou o dia em SP: reinicia o pulso para refletir apenas o dia atual.
