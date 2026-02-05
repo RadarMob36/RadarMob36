@@ -283,23 +283,23 @@ const SOURCES = [
     hint: "fofocas",
   },
   {
-    name: "O Tempo Esportes",
-    url: "https://news.google.com/rss/search?q=site:otempo.com.br+esportes&hl=pt-BR&gl=BR&ceid=BR:pt-419",
-    hint: "esportes",
-  },
-  {
     name: "ge.globo",
-    url: "https://news.google.com/rss/search?q=site:ge.globo.com+futebol&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    url: "https://news.google.com/rss/search?q=site:ge.globo.com+esportes&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "esportes",
   },
   {
     name: "Lance",
-    url: "https://news.google.com/rss/search?q=site:lance.com.br+futebol&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    url: "https://news.google.com/rss/search?q=site:lance.com.br+esportes&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "esportes",
   },
   {
     name: "ESPN Brasil",
-    url: "https://news.google.com/rss/search?q=site:espn.com.br+futebol&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    url: "https://news.google.com/rss/search?q=site:espn.com.br+esportes&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "esportes",
+  },
+  {
+    name: "UOL Esporte",
+    url: "https://news.google.com/rss/search?q=site:uol.com.br/esporte&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "esportes",
   },
   {
