@@ -75,6 +75,17 @@ const SECTION_KEYS = [
   "tiktok",
 ];
 const PULSE_SECTIONS = SECTION_KEYS.filter((s) => s !== "fora_eixo");
+const FAST_SOURCE_NAMES = new Set([
+  "Google Trends BR",
+  "G1",
+  "CNN Brasil",
+  "Portal Leo Dias",
+  "Contigo!",
+  "OFuxico",
+  "Choquei",
+  "Trend24 BR",
+  "GetDayTrends BR",
+]);
 const FORA_EIXO_ALLOWED_SOURCES = [
   "correio braziliense",
   "correiobraziliense",
@@ -1062,9 +1073,10 @@ function parseXTrendsFromApi(payload, source, today) {
     .slice(0, 20);
 }
 
-async function buildTrends() {
+async function buildTrends(sourceOverride) {
   const today = todayIso();
-  const activeSources = [...SOURCES];
+  const baseSources = Array.isArray(sourceOverride) && sourceOverride.length ? sourceOverride : SOURCES;
+  const activeSources = [...baseSources];
   if (X_BEARER_TOKEN) {
     activeSources.unshift({
       name: "X API Official BR",
@@ -1086,7 +1098,11 @@ async function buildTrends() {
           source.type === "x_html" ? parseXTrendsFromHtml(raw, source, today) : parseRssItems(raw, source, today),
         );
       })();
-      const resolvedItems = await items;
+      const resolvedItems = await withTimeout(
+        items,
+        8000,
+        `Timeout ao buscar ${source.name}`,
+      );
       return { source: source.name, ok: true, items: resolvedItems, count: resolvedItems.length };
     } catch (error) {
       return {
@@ -1383,7 +1399,14 @@ async function refreshData(force = false) {
   state.refreshPromise = (async () => {
     state.refreshing = true;
     try {
-      const trends = await withTimeout(buildTrends(), 20000, "Tempo limite ao buscar fontes.");
+      const initialSources = state.trends
+        ? null
+        : SOURCES.filter((s) => FAST_SOURCE_NAMES.has(s.name));
+      const trends = await withTimeout(
+        buildTrends(initialSources),
+        45000,
+        "Tempo limite ao buscar fontes.",
+      );
       const dateKey = trends?.meta?.date || null;
       if (dateKey && state.lastDateKey && state.lastDateKey !== dateKey) {
         // Virou o dia em SP: reinicia o pulso para refletir apenas o dia atual.
