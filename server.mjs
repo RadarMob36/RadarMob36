@@ -1361,11 +1361,21 @@ const state = {
   lastError: null,
 };
 
+async function waitForRefresh(maxMs = 8000) {
+  const start = Date.now();
+  while (state.refreshing && Date.now() - start < maxMs) {
+    await new Promise((r) => setTimeout(r, 150));
+  }
+}
+
 async function refreshData(force = false) {
   const now = Date.now();
   const freshEnough = now - state.lastRefreshTs < REFRESH_MS / 2;
   if (!force && state.trends && freshEnough) return;
-  if (state.refreshing) return;
+  if (state.refreshing) {
+    await waitForRefresh();
+    return;
+  }
 
   state.refreshing = true;
   try {
