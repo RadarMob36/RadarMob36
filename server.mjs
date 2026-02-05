@@ -1358,88 +1358,90 @@ const state = {
   lastRefreshTs: 0,
   lastDateKey: null,
   refreshing: false,
+  refreshPromise: null,
   lastError: null,
 };
-
-async function waitForRefresh(maxMs = 8000) {
-  const start = Date.now();
-  while (state.refreshing && Date.now() - start < maxMs) {
-    await new Promise((r) => setTimeout(r, 150));
-  }
-}
 
 async function refreshData(force = false) {
   const now = Date.now();
   const freshEnough = now - state.lastRefreshTs < REFRESH_MS / 2;
   if (!force && state.trends && freshEnough) return;
-  if (state.refreshing) {
-    await waitForRefresh();
+  if (state.refreshPromise) {
+    await state.refreshPromise;
     return;
   }
 
-  state.refreshing = true;
-  try {
-    const trends = await buildTrends();
-    const dateKey = trends?.meta?.date || null;
-    if (dateKey && state.lastDateKey && state.lastDateKey !== dateKey) {
-      // Virou o dia em SP: reinicia o pulso para refletir apenas o dia atual.
-      state.pulse = [];
-      state.hourlyTopics = {};
-      state.minuteTopics = {};
-      state.topicLabels = {};
-      state.seenItemKeys = new Set();
-    }
-
-    // Acumula score por hora (00-23) e também snapshot por refresh.
-    const topicScores = {};
-    for (const section of PULSE_SECTIONS) {
-      const items = Array.isArray(trends?.[section]) ? trends[section] : [];
-      for (const item of items) {
-        const rawTopic = derivePulseTopic(item);
-        const topic = normalizeTopicName(rawTopic);
-        if (!topic) continue;
-        if (!state.topicLabels[topic]) state.topicLabels[topic] = rawTopic;
-        topicScores[topic] = (topicScores[topic] || 0) + itemScore(item);
-
-        const hour = Number(String(item.published_time || "").slice(0, 2));
-        if (!Number.isInteger(hour) || hour < 0 || hour > 23) continue;
-        const minute = Number(String(item.published_time || "").slice(3, 5));
-        if (!Number.isInteger(minute) || minute < 0 || minute > 59) continue;
-        const minuteOfDay = hour * 60 + minute;
-
-        const uniqueKey = `${dateKey}|${topic}|${item.source}|${item.published_at}|${item.published_time}|${item.name}`;
-        if (state.seenItemKeys.has(uniqueKey)) continue;
-        state.seenItemKeys.add(uniqueKey);
-
-        if (!state.hourlyTopics[topic]) {
-          state.hourlyTopics[topic] = Array.from({ length: 24 }, () => 0);
-        }
-        state.hourlyTopics[topic][hour] += itemScore(item);
-        if (!state.minuteTopics[topic]) {
-          state.minuteTopics[topic] = Array.from({ length: 1440 }, () => 0);
-        }
-        state.minuteTopics[topic][minuteOfDay] += itemScore(item);
+  state.refreshPromise = (async () => {
+    state.refreshing = true;
+    try {
+      const trends = await buildTrends();
+      const dateKey = trends?.meta?.date || null;
+      if (dateKey && state.lastDateKey && state.lastDateKey !== dateKey) {
+        // Virou o dia em SP: reinicia o pulso para refletir apenas o dia atual.
+        state.pulse = [];
+        state.hourlyTopics = {};
+        state.minuteTopics = {};
+        state.topicLabels = {};
+        state.seenItemKeys = new Set();
       }
-    }
-    const checkpoint = {
-      ts: new Date().toISOString(),
-      total: computeTotalScore(topicScores),
-      topics: topicScores,
-    };
 
-    state.trends = trends;
-    state.lastRefreshTs = now;
-    state.lastDateKey = dateKey;
-    state.lastError = null;
-    state.pulse.push(checkpoint);
-    if (state.pulse.length > MAX_PULSE_POINTS) {
-      state.pulse.shift();
+      // Acumula score por hora (00-23) e também snapshot por refresh.
+      const topicScores = {};
+      for (const section of PULSE_SECTIONS) {
+        const items = Array.isArray(trends?.[section]) ? trends[section] : [];
+        for (const item of items) {
+          const rawTopic = derivePulseTopic(item);
+          const topic = normalizeTopicName(rawTopic);
+          if (!topic) continue;
+          if (!state.topicLabels[topic]) state.topicLabels[topic] = rawTopic;
+          topicScores[topic] = (topicScores[topic] || 0) + itemScore(item);
+
+          const hour = Number(String(item.published_time || "").slice(0, 2));
+          if (!Number.isInteger(hour) || hour < 0 || hour > 23) continue;
+          const minute = Number(String(item.published_time || "").slice(3, 5));
+          if (!Number.isInteger(minute) || minute < 0 || minute > 59) continue;
+          const minuteOfDay = hour * 60 + minute;
+
+          const uniqueKey = `${dateKey}|${topic}|${item.source}|${item.published_at}|${item.published_time}|${item.name}`;
+          if (state.seenItemKeys.has(uniqueKey)) continue;
+          state.seenItemKeys.add(uniqueKey);
+
+          if (!state.hourlyTopics[topic]) {
+            state.hourlyTopics[topic] = Array.from({ length: 24 }, () => 0);
+          }
+          state.hourlyTopics[topic][hour] += itemScore(item);
+          if (!state.minuteTopics[topic]) {
+            state.minuteTopics[topic] = Array.from({ length: 1440 }, () => 0);
+          }
+          state.minuteTopics[topic][minuteOfDay] += itemScore(item);
+        }
+      }
+      const checkpoint = {
+        ts: new Date().toISOString(),
+        total: computeTotalScore(topicScores),
+        topics: topicScores,
+      };
+
+      state.trends = trends;
+      state.lastRefreshTs = now;
+      state.lastDateKey = dateKey;
+      state.lastError = null;
+      state.pulse.push(checkpoint);
+      if (state.pulse.length > MAX_PULSE_POINTS) {
+        state.pulse.shift();
+      }
+    } catch (error) {
+      state.lastError = error instanceof Error ? error.message : String(error);
+      throw error;
+    } finally {
+      state.refreshing = false;
     }
-  } catch (error) {
-    state.lastError = error instanceof Error ? error.message : String(error);
-    throw error;
+  })();
+
+  try {
+    await state.refreshPromise;
   } finally {
-    state.refreshing = false;
+    state.refreshPromise = null;
   }
 }
 
