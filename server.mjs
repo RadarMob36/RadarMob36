@@ -132,6 +132,14 @@ const SPORTS_ALLOWED_SOURCES = [
   "ge.globo",
   "globoesporte",
 ];
+const MUNDO_ALLOWED_SOURCES = [
+  "tmz",
+  "deuxmoi",
+  "people",
+  "people.com",
+  "e! online",
+  "eonline",
+];
 
 const SOURCES = [
   {
@@ -982,6 +990,11 @@ function isCelebColumnSource(sourceName) {
   return CELEB_COLUMN_SOURCES.some((k) => s.includes(k));
 }
 
+function isMundoSource(sourceName) {
+  const s = String(sourceName || "").toLowerCase();
+  return MUNDO_ALLOWED_SOURCES.some((k) => s.includes(k));
+}
+
 function parseXTrendsFromHtml(html, source, today) {
   const now = new Date();
   const time = now.toLocaleTimeString("pt-BR", {
@@ -1259,6 +1272,8 @@ async function buildTrends(sourceOverride) {
           )
         : section === "celebridades"
           ? grouped.filter((item) => isCelebColumnSource(item.source))
+          : section === "mundo_fofocas"
+            ? grouped.filter((item) => isMundoSource(item.source))
           : grouped.filter((item) => item.category === section);
 
     const ranked = baseItems
@@ -1271,7 +1286,7 @@ async function buildTrends(sourceOverride) {
           return /(meusconteudos|viralizou)/.test(source);
         }
         if (section === "mundo_fofocas") {
-          return /(tmz|deuxmoi|people|e! online|eonline)/.test(source);
+          return isMundoSource(item.source);
         }
         if (section === "celebridades") {
           return isCelebColumnSource(item.source);
