@@ -111,6 +111,19 @@ const FORA_EIXO_ALLOWED_SOURCES = [
   "guia de midia",
   "guiademidia",
 ];
+const CELEB_COLUMN_SOURCES = [
+  "leo dias",
+  "leodias",
+  "portal leo dias",
+  "portalleodias",
+  "gossip do dia",
+  "choquei",
+  "contigo",
+  "ofuxico",
+  "o fuxico",
+  "ofuxico.com",
+  "ofuxico.com.br",
+];
 const SPORTS_ALLOWED_SOURCES = [
   "espn",
   "lance",
@@ -964,6 +977,11 @@ function isAllowedForaEixoSource(sourceName) {
   return FORA_EIXO_ALLOWED_SOURCES.some((k) => s.includes(k));
 }
 
+function isCelebColumnSource(sourceName) {
+  const s = String(sourceName || "").toLowerCase();
+  return CELEB_COLUMN_SOURCES.some((k) => s.includes(k));
+}
+
 function parseXTrendsFromHtml(html, source, today) {
   const now = new Date();
   const time = now.toLocaleTimeString("pt-BR", {
@@ -1240,7 +1258,7 @@ async function buildTrends(sourceOverride) {
               !isDisallowedForaEixoContent(item),
           )
         : section === "celebridades"
-          ? grouped.filter((item) => /(leo dias|gossip do dia|choquei|contigo|ofuxico)/.test(String(item.source || "").toLowerCase()))
+          ? grouped.filter((item) => isCelebColumnSource(item.source))
           : grouped.filter((item) => item.category === section);
 
     const ranked = baseItems
@@ -1256,7 +1274,7 @@ async function buildTrends(sourceOverride) {
           return /(tmz|deuxmoi|people|e! online|eonline)/.test(source);
         }
         if (section === "celebridades") {
-          return /(leo dias|gossip do dia|choquei|contigo|ofuxico)/.test(source);
+          return isCelebColumnSource(item.source);
         }
         if (section === "esportes") {
           return SPORTS_ALLOWED_SOURCES.some((k) => source.includes(k));
