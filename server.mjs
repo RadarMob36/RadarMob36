@@ -996,6 +996,15 @@ function isMundoSource(sourceName) {
   return MUNDO_ALLOWED_SOURCES.some((k) => s.includes(k));
 }
 
+function isBrazilNews(item) {
+  const text = `${item?.name || ""} ${item?.desc || ""} ${item?.source || ""} ${item?.url || ""}`.toLowerCase();
+  return (
+    /(brasil|brasileir[ao]|rio de janeiro|s[aã]o paulo|globo|g1|uol|folha|estadao|estad[aã]o|cnn brasil|terra|metropoles|ofuxico|contigo|leodias|gshow|caras|revistaquem)/.test(
+      text,
+    )
+  );
+}
+
 function parseXTrendsFromHtml(html, source, today) {
   const now = new Date();
   const time = now.toLocaleTimeString("pt-BR", {
@@ -1343,7 +1352,7 @@ async function buildTrends(sourceOverride) {
           return /(meusconteudos|viralizou)/.test(source);
         }
         if (section === "mundo_fofocas") {
-          return isMundoSource(item.source);
+          return isMundoSource(item.source) && !isBrazilNews(item);
         }
         if (section === "celebridades") {
           return isCelebColumnSource(item.source);
