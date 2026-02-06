@@ -68,6 +68,7 @@ const SECTION_KEYS = [
   "fofocas",
   "celebridades",
   "fora_eixo",
+  "viralizou",
   "esportes",
   "noticias",
   "mundo_fofocas",
@@ -239,6 +240,11 @@ const SOURCES = [
     name: "CNN Brasil",
     url: "https://news.google.com/rss/search?q=site:cnnbrasil.com.br&hl=pt-BR&gl=BR&ceid=BR:pt-419",
     hint: "noticias",
+  },
+  {
+    name: "Viralizou",
+    url: "https://news.google.com/rss/search?q=site:meusconteudos.com.br+viralizou&hl=pt-BR&gl=BR&ceid=BR:pt-419",
+    hint: "viralizou",
   },
   {
     name: "Extra Famosos",
@@ -1213,6 +1219,7 @@ async function buildTrends(sourceOverride) {
     fofocas: [],
     celebridades: [],
     fora_eixo: [],
+    viralizou: [],
     esportes: [],
     noticias: [],
     mundo_fofocas: [],
@@ -1241,6 +1248,9 @@ async function buildTrends(sourceOverride) {
         if (section === "noticias") {
           return source.includes("google trends");
         }
+        if (section === "viralizou") {
+          return /(meusconteudos|viralizou)/.test(source);
+        }
         if (section === "mundo_fofocas") {
           return /(tmz|deuxmoi|people|e! online|eonline)/.test(source);
         }
@@ -1260,6 +1270,11 @@ async function buildTrends(sourceOverride) {
         return true;
       })
       .sort((a, b) => {
+        if (section === "viralizou") {
+          const ta = Date.parse(`${a.published_at}T${a.published_time || "00:00:00"}-03:00`);
+          const tb = Date.parse(`${b.published_at}T${b.published_time || "00:00:00"}-03:00`);
+          return tb - ta;
+        }
         if (section === "x_twitter") {
           const score = (src) => {
             const s = String(src || "").toLowerCase();
