@@ -765,6 +765,7 @@ function categoryFromText(text, hint) {
   if (hint === "x_twitter") return "x_twitter";
   if (hint === "tiktok") return "tiktok";
   if (hint === "mundo_fofocas") return "mundo_fofocas";
+  if (hint === "viralizou") return "viralizou";
 
   if (/(tiktok|for you|foryou|viralizou|trend do tiktok|challenge|dancinha|áudio viral|audio viral|#fyp)/.test(t)) {
     return "tiktok";
