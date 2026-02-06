@@ -1313,10 +1313,19 @@ async function buildTrends(sourceOverride) {
         return tb - ta;
       });
     }
+    if (section === "viralizou") {
+      working = ranked.slice().sort((a, b) => {
+        const ta = Date.parse(`${a.published_at}T${a.published_time || "00:00:00"}-03:00`);
+        const tb = Date.parse(`${b.published_at}T${b.published_time || "00:00:00"}-03:00`);
+        return tb - ta;
+      });
+    }
 
     const todayItems = working.filter((x) => x.is_today);
     const fallback = working.filter((x) => !x.is_today);
-    let selected = [...todayItems, ...fallback].slice(0, 10);
+    let selected = section === "viralizou"
+      ? (todayItems.length ? todayItems.slice(0, 10) : fallback.slice(0, 10))
+      : [...todayItems, ...fallback].slice(0, 10);
     if (section === "celebridades") {
       const unique = [];
       const seenCeleb = new Set();
@@ -1332,7 +1341,7 @@ async function buildTrends(sourceOverride) {
     payload[section] = selected.map((item, idx) => ({
         name: section === "celebridades" && item.celeb ? item.celeb : item.name,
         badge: idx < 2 ? "hot" : idx < 6 ? "rising" : "new",
-        desc: item.desc,
+        desc: section === "viralizou" ? "" : item.desc,
         source: item.source,
         published_at: item.published_at,
         published_time: item.published_time,
