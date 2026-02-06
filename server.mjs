@@ -692,7 +692,7 @@ function derivePulseTopic(item) {
   // Remove ruído comum que vira "assunto" indevido no gráfico.
   text = text
     .replace(/https?:\/\/\S+/g, " ")
-    .replace(/\b(g1|cnn brasil|uol|splash|purepeople|contigo|ofuxico|quem|extra|tmz|deuxmoi|alfinetei|choquei|rainha matos|gossip do dia|instagram)\b/g, " ")
+    .replace(/\b(g1|cnn brasil|uol|splash|purepeople|contigo|ofuxico|o fuxico|quem|extra|tmz|deuxmoi|alfinetei|choquei|rainha matos|gossip do dia|instagram)\b/g, " ")
     .replace(/[^\p{L}\p{N}#\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
@@ -743,14 +743,14 @@ function derivePulseTopic(item) {
 
   // Pega um rótulo curto e útil do título (sem canal/plataforma).
   const cleanedTitle = name
-    .replace(/\b(G1|CNN Brasil|UOL|Splash|Purepeople|Contigo|OFuxico|Quem|Extra|TMZ|Deuxmoi|Alfinetei|Choquei|TikTok|Twitter|X|Trend|Topics|Brasil|Hoje|Agora)\b/gi, "")
+    .replace(/\b(G1|CNN Brasil|UOL|Splash|Purepeople|Contigo|OFuxico|O Fuxico|Quem|Extra|TMZ|Deuxmoi|Alfinetei|Choquei|TikTok|Twitter|X|Trend|Topics|Brasil|Hoje|Agora)\b/gi, "")
     .replace(/[^\p{L}\p{N}\s]/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
   const short = cleanedTitle.split(/\s+/).slice(0, 3).join(" ");
 
   if (!short || short.length < 3) return null;
-  if (/^(alfinetei|choquei|gossip|instagram|portal|x|twitter|tiktok|internacional|esportes|jogos|jogos de hoje|not[ií]cias?)$/i.test(short)) return null;
+  if (/^(alfinetei|choquei|gossip|instagram|portal|x|twitter|tiktok|internacional|esportes|jogos|jogos de hoje|not[ií]cias?|ofuxico|o fuxico)$/i.test(short)) return null;
   return short;
 }
 
