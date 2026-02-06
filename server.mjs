@@ -264,8 +264,9 @@ const SOURCES = [
   },
   {
     name: "Viralizou",
-    url: "https://www.meusconteudos.com.br/index.php/category/viralizou/feed/",
+    url: "https://www.meusconteudos.com.br/index.php/category/viralizou/",
     hint: "viralizou",
+    type: "viral_html",
   },
   {
     name: "Extra Famosos",
@@ -1043,6 +1044,60 @@ function parseXTrendsFromHtml(html, source, today) {
     .slice(0, 20);
 }
 
+function parseViralizouFromHtml(html, source, today) {
+  const now = new Date();
+  const fallbackTime = now.toLocaleTimeString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour12: false,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+
+  const blocks = html.match(/<article\b[\s\S]*?<\/article>/gi) || [];
+  const items = [];
+
+  for (const block of blocks) {
+    const timeMatch = block.match(/<time[^>]*datetime="([^"]+)"/i);
+    const pub = timeMatch ? parsePubDate(timeMatch[1]) : null;
+    const anchorMatch = block.match(/<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/i);
+    if (!anchorMatch) continue;
+    const url = cleanText(anchorMatch[1]);
+    const title = cleanText(anchorMatch[2]);
+    if (!url || !title) continue;
+    if (!/meusconteudos\.com\.br/.test(url)) continue;
+    if (/\/category\/|\/tag\/|#|\/page\/|replytocom=/i.test(url)) continue;
+
+    const publishedAt = pub?.date || today;
+    const publishedTime = pub?.time || fallbackTime;
+    const publishedTs = pub?.ts || now.getTime();
+
+    items.push({
+      name: title,
+      badge: "new",
+      desc: "",
+      source: source.name,
+      url,
+      published_at: publishedAt,
+      published_time: publishedTime,
+      published_ts: publishedTs,
+      is_today: publishedAt === today,
+      age_hours: Math.max(0, (Date.now() - publishedTs) / 3600000),
+      category: "viralizou",
+    });
+  }
+
+  const seen = new Set();
+  return items
+    .filter((item) => {
+      const key = normalizeTopicName(item.name);
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 20);
+}
+
 async function fetchText(url) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 9000);
@@ -1140,9 +1195,11 @@ async function buildTrends(sourceOverride) {
             Authorization: `Bearer ${X_BEARER_TOKEN}`,
           }).then((payload) => parseXTrendsFromApi(payload, source, today));
         }
-        return fetchText(source.url).then((raw) =>
-          source.type === "x_html" ? parseXTrendsFromHtml(raw, source, today) : parseRssItems(raw, source, today),
-        );
+        return fetchText(source.url).then((raw) => {
+          if (source.type === "x_html") return parseXTrendsFromHtml(raw, source, today);
+          if (source.type === "viral_html") return parseViralizouFromHtml(raw, source, today);
+          return parseRssItems(raw, source, today);
+        });
       })();
       const resolvedItems = await withTimeout(
         items,
